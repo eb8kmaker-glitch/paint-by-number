@@ -32,39 +32,25 @@ export default function ExportButtons({ result, canvasSize }: Props) {
 
   return (
     <div className="flex flex-col sm:flex-row gap-3">
-      {/* PNG */}
+      {/* PNG — gold outline */}
       <button
         onClick={handlePng}
         disabled={disabled}
-        className={`
-          flex-1 flex items-center justify-center gap-2
-          py-3 px-5 rounded-xl font-semibold text-sm transition-all
-          ${disabled
-            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            : 'bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 active:scale-[0.98] shadow-sm'
-          }
-        `}
+        className="btn-gallery btn-outline-gold flex-1 py-3 px-5"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         PNG 저장
-        <span className="text-xs font-normal opacity-60">/ Save PNG</span>
+        <span style={{ fontSize: '0.7rem', fontWeight: 400, opacity: 0.65 }}>/ Save PNG</span>
       </button>
 
-      {/* PDF */}
+      {/* PDF — sage green */}
       <button
         onClick={handlePdf}
         disabled={disabled || pdfLoading}
-        className={`
-          flex-1 flex items-center justify-center gap-2
-          py-3 px-5 rounded-xl font-semibold text-sm transition-all
-          ${disabled || pdfLoading
-            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] shadow-md'
-          }
-        `}
+        className="btn-gallery btn-sage flex-1 py-3 px-5"
       >
         {pdfLoading ? (
           <>
@@ -76,12 +62,12 @@ export default function ExportButtons({ result, canvasSize }: Props) {
           </>
         ) : (
           <>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
             PDF 내보내기
-            <span className="text-xs font-normal opacity-70">/ Export PDF</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 400, opacity: 0.75 }}>/ Export PDF</span>
           </>
         )}
       </button>

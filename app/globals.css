@@ -2,32 +2,174 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Range input thumb */
+:root {
+  --color-canvas:      #F8F4EE;
+  --color-frame:       #C8A96E;
+  --color-frame-dark:  #8B6914;
+  --color-ink:         #2C2218;
+  --color-muted:       #8C7B6B;
+  --color-accent:      #4A7C6B;
+  --color-accent-warm: #C4622D;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Range input — gold thumb ─────────────────────────────── */
+input[type='range'] {
+  accent-color: var(--color-frame);
+}
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--color-frame);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(37,99,235,0.35);
+  box-shadow: 0 1px 4px rgba(139, 105, 20, 0.35);
 }
 input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border: none;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--color-frame);
   cursor: pointer;
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
+/* ── Button base ──────────────────────────────────────────── */
+.btn-gallery {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border-radius: 2px;
 }
 
-/* Canvas inside diagram container should be responsive */
-canvas {
-  max-width: 100%;
-  height: auto;
+/* Gold (generate / next-step) */
+.btn-gold {
+  background: var(--color-frame-dark);
+  color: #FDF6E3;
+  font-family: var(--font-playfair), 'Playfair Display', Georgia, serif;
+  box-shadow: 0 2px 8px rgba(139, 105, 20, 0.28);
+  border: none;
+}
+.btn-gold:hover:not(:disabled) {
+  background: #9B7A1A;
+  box-shadow: 0 4px 12px rgba(139, 105, 20, 0.42);
+}
+.btn-gold:disabled {
+  background: #C4B89A;
+  color: var(--color-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Gold outline (PNG export) */
+.btn-outline-gold {
+  background: transparent;
+  border: 2px solid var(--color-frame);
+  color: var(--color-frame-dark);
+}
+.btn-outline-gold:hover:not(:disabled) {
+  background: #F5EFE4;
+  border-color: var(--color-frame-dark);
+}
+.btn-outline-gold:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Sage (PDF export) */
+.btn-sage {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(74, 124, 107, 0.28);
+}
+.btn-sage:hover:not(:disabled) {
+  background: #3D6B5A;
+  box-shadow: 0 4px 12px rgba(74, 124, 107, 0.42);
+}
+.btn-sage:disabled {
+  background: #C4B89A;
+  color: var(--color-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Pill toggle buttons ──────────────────────────────────── */
+.pill-btn {
+  border-radius: 999px;
+  border: 1px solid var(--color-frame);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.pill-btn:hover {
+  background: #F5EFE4;
+  border-color: var(--color-frame-dark);
+}
+.pill-btn.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+/* ── Back button (header) ────────────────────────────────── */
+.back-btn {
+  background: #EDE5D8;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.back-btn:hover {
+  background: #E0D5C4;
+}
+
+/* ── Section label (small caps) ─────────────────────────── */
+.section-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+}
+
+/* ── Upload zone dragging state ─────────────────────────── */
+.upload-zone {
+  transition: all 0.18s ease;
+  border: 2px dashed var(--color-frame);
+  background: #FDFAF5;
+  cursor: pointer;
+}
+.upload-zone:hover {
+  border-color: var(--color-frame-dark);
+  background: #F9F4EC;
+}
+.upload-zone.dragging {
+  border-color: var(--color-accent);
+  background: #EEF4F2;
+  transform: scale(1.01);
 }

@@ -20,22 +20,20 @@ function RadioGroup<T extends string>({
 }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-slate-700 mb-1">
-        {label} <span className="font-normal text-slate-400 text-xs">/ {labelEn}</span>
+      <p className="section-label mb-2">
+        {label} <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ {labelEn}</span>
       </p>
       <div className="flex gap-2 flex-wrap">
         {options.map(opt => (
           <button
             key={opt.value}
             onClick={() => onChange(opt.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-              value === opt.value
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'
-            }`}
+            className={`pill-btn${value === opt.value ? ' active' : ''}`}
           >
             {opt.label}
-            <span className="text-xs opacity-70 ml-1">/ {opt.labelEn}</span>
+            <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '3px' }}>
+              / {opt.labelEn}
+            </span>
           </button>
         ))}
       </div>
@@ -47,7 +45,6 @@ export default function SettingsPanel({
   settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl,
 }: Props) {
   const set = <K extends keyof DiagramSettings>(k: K, v: DiagramSettings[K]) => {
-    // Reset crop region when canvas size changes (aspect ratio may differ)
     if (k === 'canvasSize') {
       onChange({ ...settings, [k]: v, cropRegion: null });
     } else {
@@ -57,13 +54,15 @@ export default function SettingsPanel({
 
   return (
     <div className="flex flex-col gap-5">
+
       {/* Color count */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-semibold text-slate-700">
-            색상 수 <span className="font-normal text-slate-400 text-xs">/ Color Count</span>
+        <div className="flex items-center justify-between mb-2">
+          <p className="section-label">
+            색상 수 <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ Color Count</span>
           </p>
-          <span className="text-sm font-bold text-blue-600 tabular-nums w-8 text-right">
+          <span className="text-sm font-bold tabular-nums"
+            style={{ color: 'var(--color-frame-dark)', minWidth: '28px', textAlign: 'right' }}>
             {settings.colorCount}
           </span>
         </div>
@@ -72,10 +71,10 @@ export default function SettingsPanel({
           min={8} max={40} step={1}
           value={settings.colorCount}
           onChange={e => set('colorCount', Number(e.target.value))}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer
-            bg-slate-200 accent-blue-600"
+          className="w-full h-2 rounded-full appearance-none cursor-pointer"
+          style={{ background: '#DDD0BC' }}
         />
-        <div className="flex justify-between text-xs text-slate-400 mt-0.5">
+        <div className="flex justify-between mt-0.5" style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>
           <span>8</span><span>40</span>
         </div>
       </div>
@@ -115,11 +114,11 @@ export default function SettingsPanel({
         ]}
       />
 
-      {/* Crop preview — only visible in Fill mode */}
+      {/* Crop preview — fill mode only */}
       {settings.fitMode === 'fill' && imageDataUrl && (
         <div className="-mt-2">
-          <p className="text-xs text-slate-500 mb-0.5">
-            크롭 미리보기 <span className="text-slate-400">/ Crop Preview</span>
+          <p className="section-label mb-1">
+            크롭 미리보기 <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ Crop Preview</span>
           </p>
           <CropPreview
             imageDataUrl={imageDataUrl}
@@ -146,14 +145,7 @@ export default function SettingsPanel({
       <button
         onClick={onGenerate}
         disabled={!hasImage || isGenerating}
-        className={`
-          mt-2 w-full py-3 rounded-xl font-semibold text-base transition-all
-          flex items-center justify-center gap-2
-          ${hasImage && !isGenerating
-            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
-            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }
-        `}
+        className="btn-gallery btn-gold mt-2 w-full py-3 text-base active:scale-[0.98]"
       >
         {isGenerating ? (
           <>
@@ -165,11 +157,14 @@ export default function SettingsPanel({
           </>
         ) : (
           <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            생성하기 <span className="font-normal text-sm opacity-75">/ Generate</span>
+            생성하기
+            <span style={{ fontSize: '0.875rem', fontFamily: 'var(--font-inter), sans-serif', opacity: 0.72 }}>
+              / Generate
+            </span>
           </>
         )}
       </button>

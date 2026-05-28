@@ -8,11 +8,49 @@ import ExportButtons from '@/components/ExportButtons';
 import { generateDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
 
 const STEPS = [
-  { ko: '업로드',  en: 'Upload'   },
-  { ko: '설정',    en: 'Settings' },
-  { ko: '생성',    en: 'Generate' },
-  { ko: '내보내기',en: 'Export'   },
+  { ko: '업로드',   en: 'Upload'   },
+  { ko: '설정',     en: 'Settings' },
+  { ko: '생성',     en: 'Generate' },
+  { ko: '내보내기', en: 'Export'   },
 ];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="border-b" style={{ background: '#FDFAF5', borderColor: '#DDD0BC' }}>
+      <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="flex items-center">
+          {STEPS.map((step, i) => (
+            <div key={i} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-0.5">
+                <div
+                  className="w-7 h-7 flex items-center justify-center text-xs font-bold transition-all"
+                  style={{
+                    borderRadius: '4px',
+                    background: i === current
+                      ? 'var(--color-frame)'
+                      : i < current
+                        ? 'var(--color-accent)'
+                        : '#E8DDD0',
+                    color: i <= current ? '#fff' : 'var(--color-muted)',
+                  }}
+                >
+                  {i < current ? '✓' : i + 1}
+                </div>
+                <span className="hidden sm:block text-[10px] font-medium"
+                  style={{ color: i === current ? 'var(--color-frame-dark)' : 'var(--color-muted)' }}>
+                  {step.ko}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className="flex-1 h-px mx-2" style={{ background: '#D4C4AE' }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function GeneratePage() {
   const router = useRouter();
@@ -32,10 +70,8 @@ export default function GeneratePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error,        setError]        = useState('');
 
-  // Current step index for stepper
   const currentStep = result ? 3 : 1;
 
-  // Load image from sessionStorage
   useEffect(() => {
     const stored = sessionStorage.getItem('uploadedImage');
     if (!stored) { router.replace('/'); return; }
@@ -52,7 +88,6 @@ export default function GeneratePage() {
     setError('');
 
     try {
-      // Allow React to paint the loading state before heavy computation starts
       await new Promise(r => setTimeout(r, 60));
       const res = await generateDiagram(img, settings, (pct) => {
         setProgress(pct);
@@ -68,65 +103,41 @@ export default function GeneratePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-20">
+
+      {/* ── Header ──────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b backdrop-blur-md"
+        style={{ borderColor: 'var(--color-frame)', background: 'rgba(248, 244, 238, 0.93)' }}>
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.push('/')}
-            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+            className="back-btn w-9 h-9 flex items-center justify-center"
             title="홈으로 / Home"
           >
-            <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+              style={{ color: 'var(--color-ink)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--color-frame-dark)', borderRadius: '3px' }}>
+            <svg width="20" height="20" fill="none" stroke="#FDF6E3" strokeWidth="1.8" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900 leading-tight">Paint by Number</h1>
-            <p className="text-xs text-slate-400 leading-tight">페인트 바이 넘버 도안 생성기</p>
+            <h1 className="text-base font-semibold leading-tight"
+              style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-ink)' }}>
+              Paint by Number
+            </h1>
+            <p className="text-xs leading-tight" style={{ color: 'var(--color-muted)' }}>
+              페인트 바이 넘버 도안 생성기
+            </p>
           </div>
         </div>
       </header>
 
-      {/* Step indicator */}
-      <div className="bg-white border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-0">
-            {STEPS.map((step, i) => (
-              <div key={i} className="flex items-center">
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium
-                  ${i === currentStep
-                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
-                    : i < currentStep
-                      ? 'text-green-600'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
-                    ${i === currentStep
-                      ? 'bg-blue-600 text-white'
-                      : i < currentStep
-                        ? 'bg-green-500 text-white'
-                        : 'bg-slate-200 text-slate-500'
-                    }`}
-                  >
-                    {i < currentStep ? '✓' : i + 1}
-                  </span>
-                  <span className="hidden sm:inline">{step.ko}</span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`w-6 h-px mx-1 ${i < currentStep ? 'bg-green-300' : 'bg-slate-200'}`} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <StepIndicator current={currentStep} />
 
       {/* Hidden image element for processing */}
       {imageDataUrl && (
@@ -139,15 +150,42 @@ export default function GeneratePage() {
         />
       )}
 
-      {/* Main layout */}
+      {/* ── Main layout ─────────────────────────────────────── */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-5">
 
-          {/* ─── Left: Settings ──────────────────────────── */}
-          <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 h-fit lg:sticky lg:top-20">
-            <h2 className="text-sm font-bold text-slate-700 mb-4">
-              설정 <span className="font-normal text-slate-400 text-xs">/ Settings</span>
+          {/* ─── Left: Settings panel ──────────────────── */}
+          <aside className="h-fit lg:sticky lg:top-20"
+            style={{
+              background: '#fff',
+              borderLeft: '4px solid var(--color-frame)',
+              borderTop: '1px solid #DDD0BC',
+              borderRight: '1px solid #DDD0BC',
+              borderBottom: '1px solid #DDD0BC',
+              borderRadius: '0 3px 3px 0',
+              boxShadow: '0 2px 12px rgba(44, 34, 24, 0.07)',
+              padding: '20px',
+            }}>
+            <h2 style={{
+              fontFamily: 'var(--font-playfair), Georgia, serif',
+              fontSize: '1rem',
+              fontWeight: 600,
+              color: 'var(--color-ink)',
+              marginBottom: '6px',
+            }}>
+              설정
+              <span style={{
+                fontFamily: 'var(--font-inter), Inter, sans-serif',
+                fontSize: '0.7rem',
+                fontWeight: 400,
+                color: 'var(--color-muted)',
+                marginLeft: '6px',
+              }}>
+                / Settings
+              </span>
             </h2>
+            <div style={{ height: '1px', background: 'var(--color-frame)', opacity: 0.35, marginBottom: '16px' }} />
+
             <SettingsPanel
               settings={settings}
               onChange={setSettings}
@@ -157,70 +195,111 @@ export default function GeneratePage() {
               imageDataUrl={imageDataUrl ?? undefined}
             />
 
-            {/* Original image thumbnail */}
             {imageDataUrl && (
-              <div className="mt-5 pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-400 mb-2">원본 이미지 / Original</p>
+              <div className="mt-5 pt-4" style={{ borderTop: '1px solid #EDE5D8' }}>
+                <p className="section-label mb-2">원본 이미지 / Original</p>
                 <img
                   src={imageDataUrl}
                   alt="원본"
-                  className="w-full rounded-lg border border-slate-200 object-cover"
-                  style={{ maxHeight: 120 }}
+                  className="w-full object-cover"
+                  style={{ maxHeight: 120, border: '1px solid #DDD0BC' }}
                 />
               </div>
             )}
           </aside>
 
-          {/* ─── Center: Diagram canvas ───────────────────── */}
+          {/* ─── Center: Gallery wall + canvas ─────────── */}
           <section className="flex flex-col gap-4">
-            <DiagramCanvas
-              canvas={result?.canvas ?? null}
-              isGenerating={isGenerating}
-              progress={progress}
-              placeholder={imageDataUrl ?? undefined}
-            />
+            <div style={{ background: '#E8E0D5', padding: '28px 24px', borderRadius: '3px' }}>
+              <DiagramCanvas
+                canvas={result?.canvas ?? null}
+                isGenerating={isGenerating}
+                progress={progress}
+                placeholder={imageDataUrl ?? undefined}
+              />
+            </div>
 
-            {/* Error */}
             {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">
+              <div className="px-4 py-3 text-sm"
+                style={{
+                  background: '#FDF0EC',
+                  border: '1px solid var(--color-accent-warm)',
+                  color: 'var(--color-accent-warm)',
+                  borderRadius: '3px',
+                }}>
                 {error}
               </div>
             )}
 
-            {/* Export buttons (shown below diagram) */}
             {result && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  내보내기 <span className="font-normal text-slate-400 text-xs">/ Export</span>
+              <div style={{
+                background: '#fff',
+                border: '1px solid #DDD0BC',
+                borderRadius: '3px',
+                padding: '16px 20px',
+              }}>
+                <h3 style={{
+                  fontFamily: 'var(--font-playfair), Georgia, serif',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: 'var(--color-ink)',
+                  marginBottom: '12px',
+                }}>
+                  내보내기
+                  <span style={{
+                    fontFamily: 'var(--font-inter), Inter, sans-serif',
+                    fontSize: '0.7rem',
+                    fontWeight: 400,
+                    color: 'var(--color-muted)',
+                    marginLeft: '6px',
+                  }}>
+                    / Export
+                  </span>
                 </h3>
                 <ExportButtons result={result} canvasSize={settings.canvasSize} />
               </div>
             )}
           </section>
 
-          {/* ─── Right: Color legend ─────────────────────── */}
-          <aside className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-5 h-fit
-            lg:sticky lg:top-20 transition-opacity duration-300
-            ${result ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
+          {/* ─── Right: Color legend ───────────────────── */}
+          <aside
+            className="h-fit lg:sticky lg:top-20 transition-opacity duration-300"
+            style={{
+              background: '#fff',
+              border: '1px solid #DDD0BC',
+              borderRadius: '3px',
+              padding: '20px',
+              opacity: result ? 1 : 0.4,
+              pointerEvents: result ? undefined : 'none',
+            }}
           >
             {result ? (
               <ColorLegend colorMap={result.colorMap} />
             ) : (
-              <div className="flex flex-col items-center gap-2 py-8 text-slate-400">
-                <svg className="w-10 h-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <div className="flex flex-col items-center gap-3 py-10"
+                style={{ color: 'var(--color-muted)' }}>
+                <svg className="w-12 h-12 opacity-25" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.53-.19-1.01-.49-1.38C13.22 18.22 13 17.63 13 17c0-1.1.9-2 2-2h2.2c2.65 0 4.8-2.15 4.8-4.8C22 5.78 17.52 2 12 2z"/>
                 </svg>
-                <p className="text-xs text-center">생성 후 색상 범례가<br />표시됩니다</p>
-                <p className="text-[10px] text-center text-slate-300">Color legend appears after generation</p>
+                <p className="text-xs text-center" style={{ color: 'var(--color-muted)' }}>
+                  생성 후 색상 범례가<br />표시됩니다
+                </p>
+                <p className="text-center" style={{ fontSize: '10px', color: 'var(--color-muted)', opacity: 0.65 }}>
+                  Color legend appears after generation
+                </p>
               </div>
             )}
           </aside>
+
         </div>
       </main>
 
-      <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-100">
-        모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다
+      {/* ── Footer ──────────────────────────────────────────── */}
+      <footer className="py-5 text-center border-t" style={{ borderColor: '#DDD0BC' }}>
+        <p className="text-xs italic"
+          style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-muted)' }}>
+          모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다
+        </p>
       </footer>
     </div>
   );

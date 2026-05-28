@@ -6,7 +6,7 @@ interface Props {
 }
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SIDE = 1200; // downscale before storing
+const MAX_SIDE = 1200;
 
 function resizeToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -80,45 +80,71 @@ export default function UploadZone({ onImageReady }: Props) {
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`
-            relative flex flex-col items-center justify-center gap-3
-            min-h-[220px] rounded-2xl border-2 border-dashed cursor-pointer
-            transition-all duration-200 select-none
-            ${dragging
-              ? 'border-blue-500 bg-blue-50 scale-[1.01]'
-              : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40'
-            }
-          `}
+          className={`upload-zone${dragging ? ' dragging' : ''}`}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            minHeight: '200px',
+            padding: '28px',
+            userSelect: 'none',
+          }}
         >
-          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          {/* Palette icon */}
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor"
+            style={{ color: 'var(--color-frame)', opacity: dragging ? 0.9 : 0.55 }}>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.53-.19-1.01-.49-1.38C13.22 18.22 13 17.63 13 17c0-1.1.9-2 2-2h2.2c2.65 0 4.8-2.15 4.8-4.8C22 5.78 17.52 2 12 2zm-5.5 11c-.83 0-1.5-.67-1.5-1.5S5.67 10 6.5 10 8 10.67 8 11.5 7.33 13 6.5 13zm3-4C8.67 9 8 8.33 8 7.5S8.67 6 9.5 6s1.5.67 1.5 1.5S10.33 9 9.5 9zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 6 14.5 6s1.5.67 1.5 1.5S15.33 9 14.5 9zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 10 17.5 10s1.5.67 1.5 1.5S18.33 13 17.5 13z"/>
           </svg>
           <div className="text-center">
-            <p className="text-base font-medium text-slate-700">
+            <p className="text-base font-medium" style={{ color: 'var(--color-ink)' }}>
               이미지를 드래그하거나 클릭하여 업로드
             </p>
-            <p className="text-sm text-slate-400 mt-1">Drag &amp; drop or click to upload</p>
-            <p className="text-xs text-slate-400 mt-1">JPG · PNG · WEBP</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
+              Drag &amp; drop or click to upload
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.65 }}>
+              JPG · PNG · WEBP
+            </p>
           </div>
           {dragging && (
-            <div className="absolute inset-0 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-              <p className="text-blue-600 font-semibold text-lg">놓아서 업로드</p>
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(74, 124, 107, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <p style={{ color: 'var(--color-accent)', fontWeight: 600, fontSize: '1.1rem' }}>
+                놓아서 업로드
+              </p>
             </div>
           )}
         </div>
       ) : (
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white">
+        <div style={{
+          border: '1px solid #DDD0BC',
+          background: '#FDFAF5',
+          overflow: 'hidden',
+        }}>
           <img
             src={preview}
             alt="업로드된 이미지"
-            className="w-full max-h-[340px] object-contain"
+            className="w-full object-contain"
+            style={{ maxHeight: '320px' }}
           />
-          <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-100">
-            <span className="text-sm text-slate-500 truncate max-w-[200px]">{fileName}</span>
+          <div className="flex items-center justify-between px-4 py-2"
+            style={{ background: '#F5EFE4', borderTop: '1px solid #DDD0BC' }}>
+            <span className="text-sm truncate max-w-[200px]" style={{ color: 'var(--color-muted)' }}>
+              {fileName}
+            </span>
             <button
               onClick={reset}
-              className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors"
+              className="text-sm font-medium transition-colors"
+              style={{ color: 'var(--color-accent-warm)' }}
             >
               다시 선택
             </button>
@@ -127,7 +153,9 @@ export default function UploadZone({ onImageReady }: Props) {
       )}
 
       {error && (
-        <p className="mt-2 text-sm text-red-500 text-center">{error}</p>
+        <p className="mt-2 text-sm text-center" style={{ color: 'var(--color-accent-warm)' }}>
+          {error}
+        </p>
       )}
 
       <input
