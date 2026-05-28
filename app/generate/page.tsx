@@ -23,6 +23,8 @@ export default function GeneratePage() {
     colorCount:  24,
     detailLevel: 'medium',
     canvasSize:  'a4',
+    fitMode:     'fit',
+    cropRegion:  null,
     style:       'clean',
   });
   const [result,       setResult]       = useState<DiagramResult | null>(null);
@@ -152,6 +154,7 @@ export default function GeneratePage() {
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
               hasImage={!!imageDataUrl}
+              imageDataUrl={imageDataUrl ?? undefined}
             />
 
             {/* Original image thumbnail */}
@@ -190,7 +193,7 @@ export default function GeneratePage() {
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">
                   내보내기 <span className="font-normal text-slate-400 text-xs">/ Export</span>
                 </h3>
-                <ExportButtons result={result} />
+                <ExportButtons result={result} canvasSize={settings.canvasSize} />
               </div>
             )}
           </section>

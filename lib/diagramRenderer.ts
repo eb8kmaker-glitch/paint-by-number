@@ -5,11 +5,21 @@ import { PaintColor } from '@/constants/paintColors';
 export type DetailLevel = 'low' | 'medium' | 'high';
 export type CanvasSize  = 'a4' | 'a3' | 'square';
 export type Style       = 'clean' | 'detailed';
+export type FitMode     = 'fit' | 'fill';
+
+export interface CropRegion {
+  x: number; // source x in pixels
+  y: number; // source y in pixels
+  w: number; // source width in pixels
+  h: number; // source height in pixels
+}
 
 export interface DiagramSettings {
   colorCount:  number;
   detailLevel: DetailLevel;
   canvasSize:  CanvasSize;
+  fitMode:     FitMode;
+  cropRegion:  CropRegion | null; // null = auto-center crop (fill) or full image (fit)
   style:       Style;
 }
 
@@ -26,10 +36,17 @@ export interface DiagramResult {
   colorMap: Map<number, ColorInfo>; // clusterIndex → info
 }
 
-// Maximum processing width (px)
-const MAX_W = 800;
+// Output dimensions at 300 DPI
+export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
+  a4:     { w: 2480, h: 3508 },
+  a3:     { w: 3508, h: 4961 },
+  square: { w: 2480, h: 2480 },
+};
 
-// Minimum region pixel area to receive a label (per detail level)
+// Maximum processing width (px) — K-means runs at this resolution
+const MAX_PROC_W = 800;
+
+// Minimum region pixel area to receive a label (per detail level, at processing resolution)
 const MIN_LABEL_PX: Record<DetailLevel, number> = {
   low:    600,
   medium: 200,
@@ -48,21 +65,60 @@ export async function generateDiagram(
   settings: DiagramSettings,
   onProgress?: (pct: number) => void,
 ): Promise<DiagramResult> {
-  // ── 1. Scale source image ──────────────────────────────
-  const scale = Math.min(1, MAX_W / img.naturalWidth);
-  const W = Math.round(img.naturalWidth  * scale);
-  const H = Math.round(img.naturalHeight * scale);
+  // ── 1. Determine target canvas dimensions ──────────────
+  const { w: TW, h: TH } = CANVAS_DIMS[settings.canvasSize];
+  const targetAR = TW / TH;
+
+  // ── 2. Determine source crop / fit parameters ──────────
+  // Processing canvas always has the target aspect ratio so
+  // the result maps 1:1 when scaled up to TW×TH.
+  const W = MAX_PROC_W;
+  const H = Math.round(W / targetAR);
 
   const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = W;  srcCanvas.height = H;
+  srcCanvas.width = W; srcCanvas.height = H;
   const srcCtx = srcCanvas.getContext('2d')!;
-  srcCtx.drawImage(img, 0, 0, W, H);
+  srcCtx.fillStyle = '#ffffff';
+  srcCtx.fillRect(0, 0, W, H);
+
+  if (settings.fitMode === 'fit') {
+    // Letterbox: scale image to fit inside W×H, center it
+    const imgAR = img.naturalWidth / img.naturalHeight;
+    let dw = W, dh = H;
+    if (imgAR > targetAR) { dh = W / imgAR; } else { dw = H * imgAR; }
+    const dx = (W - dw) / 2;
+    const dy = (H - dh) / 2;
+    srcCtx.drawImage(img, dx, dy, dw, dh);
+  } else {
+    // Fill: crop image to target AR, use cropRegion or auto-center
+    let cropX: number, cropY: number, cropW: number, cropH: number;
+
+    if (settings.cropRegion) {
+      ({ x: cropX, y: cropY, w: cropW, h: cropH } = settings.cropRegion);
+    } else {
+      // Auto-center crop
+      const imgAR = img.naturalWidth / img.naturalHeight;
+      if (imgAR > targetAR) {
+        cropH = img.naturalHeight;
+        cropW = cropH * targetAR;
+        cropX = (img.naturalWidth - cropW) / 2;
+        cropY = 0;
+      } else {
+        cropW = img.naturalWidth;
+        cropH = cropW / targetAR;
+        cropX = 0;
+        cropY = (img.naturalHeight - cropH) / 2;
+      }
+    }
+    srcCtx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, W, H);
+  }
+
   const { data: px } = srcCtx.getImageData(0, 0, W, H); // RGBA flat
 
   onProgress?.(5); await tick();
 
-  // ── 2. Sample pixels for K-means ───────────────────────
-  const STEP = 4; // sample every Nth pixel
+  // ── 3. Sample pixels for K-means ───────────────────────
+  const STEP = 4;
   const sampled: [number, number, number][] = [];
   for (let y = 0; y < H; y += STEP) {
     for (let x = 0; x < W; x += STEP) {
@@ -73,15 +129,14 @@ export async function generateDiagram(
 
   onProgress?.(10); await tick();
 
-  // ── 3. K-means in LAB space ────────────────────────────
+  // ── 4. K-means in LAB space ────────────────────────────
   const K = settings.colorCount;
   const { centers } = kMeans(sampled, K, 25);
 
   onProgress?.(40); await tick();
 
-  // ── 4. Assign every pixel to nearest cluster ────────────
+  // ── 5. Assign every pixel to nearest cluster ────────────
   const clusterMap = new Int32Array(W * H);
-  // Pre-compute squared distances helper (Euclidean LAB, fast)
   const labDistSq = (
     [L1, a1, b1]: [number, number, number],
     [L2, a2, b2]: [number, number, number],
@@ -99,11 +154,11 @@ export async function generateDiagram(
 
   onProgress?.(60); await tick();
 
-  // ── 5. Map cluster centres → nearest paint colour ────────
+  // ── 6. Map cluster centres → nearest paint colour ────────
   const clusterToPaint = centers.map(c => mapToNearestPaint(c));
   const symbols        = generateSymbols(K);
 
-  // ── 6. Connected components (BFS, typed-array queue) ────
+  // ── 7. Connected components (BFS) ───────────────────────
   const visited  = new Uint8Array(W * H);
   const bfsQueue = new Int32Array(W * H);
   const componentsByClu = new Map<number, Array<{ size: number; cx: number; cy: number }>>();
@@ -145,7 +200,7 @@ export async function generateDiagram(
 
   onProgress?.(75); await tick();
 
-  // ── 7. Build edge map ─────────────────────────────────
+  // ── 8. Build edge map ─────────────────────────────────
   const isEdge = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -156,41 +211,51 @@ export async function generateDiagram(
     }
   }
 
-  // For "detailed" style add a faint Sobel overlay on the original
   if (settings.style === 'detailed') {
     applySobelOverlay(px, W, H, isEdge, 40);
   }
 
   onProgress?.(85); await tick();
 
-  // ── 8. Render output canvas ───────────────────────────
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width = W; outCanvas.height = H;
-  const outCtx = outCanvas.getContext('2d')!;
-  outCtx.fillStyle = '#ffffff';
-  outCtx.fillRect(0, 0, W, H);
+  // ── 9. Render low-res edge canvas ─────────────────────
+  const edgeCanvas = document.createElement('canvas');
+  edgeCanvas.width = W; edgeCanvas.height = H;
+  const edgeCtx = edgeCanvas.getContext('2d')!;
+  edgeCtx.fillStyle = '#ffffff';
+  edgeCtx.fillRect(0, 0, W, H);
 
-  const outData = outCtx.getImageData(0, 0, W, H);
-  const outPx   = outData.data;
-
+  const edgeData = edgeCtx.getImageData(0, 0, W, H);
+  const edgePx   = edgeData.data;
   const edgeGray = settings.style === 'clean' ? 185 : 140;
   for (let i = 0; i < W * H; i++) {
     if (isEdge[i]) {
-      outPx[i * 4]     = edgeGray;
-      outPx[i * 4 + 1] = edgeGray;
-      outPx[i * 4 + 2] = edgeGray;
-      outPx[i * 4 + 3] = 255;
+      edgePx[i * 4]     = edgeGray;
+      edgePx[i * 4 + 1] = edgeGray;
+      edgePx[i * 4 + 2] = edgeGray;
+      edgePx[i * 4 + 3] = 255;
     }
   }
-  outCtx.putImageData(outData, 0, 0);
+  edgeCtx.putImageData(edgeData, 0, 0);
 
-  // ── 9. Draw region labels ─────────────────────────────
-  const minPx   = MIN_LABEL_PX[settings.detailLevel];
-  const fontSize = Math.max(9, Math.min(16, Math.round(W / 70)));
+  // ── 10. Scale edges up to final target resolution ─────
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width  = TW;
+  outCanvas.height = TH;
+  const outCtx = outCanvas.getContext('2d')!;
+  // Nearest-neighbour keeps edges crisp (no anti-alias blur)
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.drawImage(edgeCanvas, 0, 0, TW, TH);
+
+  // ── 11. Draw region labels at full resolution ─────────
+  const minPx    = MIN_LABEL_PX[settings.detailLevel];
+  const fontSize = Math.max(20, Math.round(TW / 70));
+  const scaleX   = TW / W;
+  const scaleY   = TH / H;
 
   outCtx.textAlign    = 'center';
   outCtx.textBaseline = 'middle';
   outCtx.font         = `bold ${fontSize}px Arial, sans-serif`;
+  outCtx.fillStyle    = '#333333';
 
   const colorMap = new Map<number, ColorInfo>();
 
@@ -207,9 +272,8 @@ export async function generateDiagram(
       clusterLab:  centers[clu],
     });
 
-    outCtx.fillStyle = '#333333';
     for (const comp of significant) {
-      outCtx.fillText(symbols[clu], comp.cx, comp.cy);
+      outCtx.fillText(symbols[clu], comp.cx * scaleX, comp.cy * scaleY);
     }
   }
 

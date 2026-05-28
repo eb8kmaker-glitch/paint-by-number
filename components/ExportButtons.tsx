@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { DiagramResult } from '@/lib/diagramRenderer';
+import { DiagramResult, CanvasSize } from '@/lib/diagramRenderer';
 import { exportToPng, exportToPdf } from '@/lib/pdfExport';
 
 interface Props {
-  result: DiagramResult | null;
+  result:     DiagramResult | null;
+  canvasSize: CanvasSize;
 }
 
-export default function ExportButtons({ result }: Props) {
+export default function ExportButtons({ result, canvasSize }: Props) {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const handlePng = () => {
@@ -19,7 +20,7 @@ export default function ExportButtons({ result }: Props) {
     if (!result) return;
     setPdfLoading(true);
     try {
-      await exportToPdf(result.canvas, result.colorMap);
+      await exportToPdf(result.canvas, result.colorMap, canvasSize);
     } catch (err) {
       console.error('PDF export failed', err);
     } finally {

@@ -1,12 +1,14 @@
 'use client';
-import { DiagramSettings, DetailLevel, CanvasSize, Style } from '@/lib/diagramRenderer';
+import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode } from '@/lib/diagramRenderer';
+import CropPreview from '@/components/CropPreview';
 
 interface Props {
-  settings:    DiagramSettings;
-  onChange:    (s: DiagramSettings) => void;
-  onGenerate:  () => void;
+  settings:     DiagramSettings;
+  onChange:     (s: DiagramSettings) => void;
+  onGenerate:   () => void;
   isGenerating: boolean;
-  hasImage:    boolean;
+  hasImage:     boolean;
+  imageDataUrl?: string;
 }
 
 function RadioGroup<T extends string>({
@@ -42,10 +44,16 @@ function RadioGroup<T extends string>({
 }
 
 export default function SettingsPanel({
-  settings, onChange, onGenerate, isGenerating, hasImage,
+  settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl,
 }: Props) {
-  const set = <K extends keyof DiagramSettings>(k: K, v: DiagramSettings[K]) =>
-    onChange({ ...settings, [k]: v });
+  const set = <K extends keyof DiagramSettings>(k: K, v: DiagramSettings[K]) => {
+    // Reset crop region when canvas size changes (aspect ratio may differ)
+    if (k === 'canvasSize') {
+      onChange({ ...settings, [k]: v, cropRegion: null });
+    } else {
+      onChange({ ...settings, [k]: v });
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,9 +86,9 @@ export default function SettingsPanel({
         value={settings.detailLevel}
         onChange={v => set('detailLevel', v)}
         options={[
-          { value: 'low',    label: '낮음',  labelEn: 'Low'    },
-          { value: 'medium', label: '중간',  labelEn: 'Med'    },
-          { value: 'high',   label: '높음',  labelEn: 'High'   },
+          { value: 'low',    label: '낮음', labelEn: 'Low'  },
+          { value: 'medium', label: '중간', labelEn: 'Med'  },
+          { value: 'high',   label: '높음', labelEn: 'High' },
         ]}
       />
 
@@ -90,11 +98,38 @@ export default function SettingsPanel({
         value={settings.canvasSize}
         onChange={v => set('canvasSize', v)}
         options={[
-          { value: 'a4',     label: 'A4',        labelEn: 'A4'     },
-          { value: 'a3',     label: 'A3',        labelEn: 'A3'     },
-          { value: 'square', label: '정사각형',  labelEn: 'Square' },
+          { value: 'a4',     label: 'A4',       labelEn: 'A4'     },
+          { value: 'a3',     label: 'A3',       labelEn: 'A3'     },
+          { value: 'square', label: '정사각형', labelEn: 'Square' },
         ]}
       />
+
+      {/* Fit mode */}
+      <RadioGroup<FitMode>
+        label="맞춤 방식" labelEn="Fit Mode"
+        value={settings.fitMode}
+        onChange={v => set('fitMode', v)}
+        options={[
+          { value: 'fit',  label: '맞춤', labelEn: 'Fit'  },
+          { value: 'fill', label: '채움', labelEn: 'Fill' },
+        ]}
+      />
+
+      {/* Crop preview — only visible in Fill mode */}
+      {settings.fitMode === 'fill' && imageDataUrl && (
+        <div className="-mt-2">
+          <p className="text-xs text-slate-500 mb-0.5">
+            크롭 미리보기 <span className="text-slate-400">/ Crop Preview</span>
+          </p>
+          <CropPreview
+            imageDataUrl={imageDataUrl}
+            canvasSize={settings.canvasSize}
+            cropRegion={settings.cropRegion}
+            onChange={crop => onChange({ ...settings, cropRegion: crop })}
+            onReset={() => onChange({ ...settings, cropRegion: null })}
+          />
+        </div>
+      )}
 
       {/* Style */}
       <RadioGroup<Style>
@@ -102,8 +137,8 @@ export default function SettingsPanel({
         value={settings.style}
         onChange={v => set('style', v)}
         options={[
-          { value: 'clean',    label: '깔끔',  labelEn: 'Clean'    },
-          { value: 'detailed', label: '상세',  labelEn: 'Detailed' },
+          { value: 'clean',    label: '깔끔', labelEn: 'Clean'    },
+          { value: 'detailed', label: '상세', labelEn: 'Detailed' },
         ]}
       />
 

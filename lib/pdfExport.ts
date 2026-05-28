@@ -1,21 +1,34 @@
 // Client-side only — jsPDF uses browser APIs
 import type { ColorInfo } from '@/lib/diagramRenderer';
+import type { CanvasSize } from '@/lib/diagramRenderer';
+
+// Paper dimensions in mm
+const PAPER: Record<CanvasSize, { w: number; h: number; format: string }> = {
+  a4:     { w: 210, h: 297, format: 'a4' },
+  a3:     { w: 297, h: 420, format: 'a3' },
+  square: { w: 210, h: 297, format: 'a4' }, // square diagram centred on A4
+};
 
 export async function exportToPdf(
   diagramCanvas: HTMLCanvasElement,
   colorMap: Map<number, ColorInfo>,
+  canvasSize: CanvasSize = 'a4',
 ): Promise<void> {
-  // Dynamic import to avoid SSR issues
   const { jsPDF } = await import('jspdf');
 
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const PW = 210, PH = 297;
+  const paper  = PAPER[canvasSize];
+  const PW     = paper.w;
+  const PH     = paper.h;
   const MARGIN = 10;
   const CONTENT_W = PW - 2 * MARGIN;
 
-  // ── Diagram section (upper 60 % of page) ──────────────
-  const diagramMaxH = (PH - 3 * MARGIN) * 0.60;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: paper.format });
+
+  // ── Diagram section ────────────────────────────────────
+  const diagramMaxH = canvasSize === 'square'
+    ? CONTENT_W          // square: fill content width
+    : (PH - 3 * MARGIN) * 0.60;
+
   const ar = diagramCanvas.width / diagramCanvas.height;
   let dw = CONTENT_W;
   let dh = dw / ar;
@@ -32,49 +45,68 @@ export async function exportToPdf(
   pdf.line(MARGIN, sepY, PW - MARGIN, sepY);
 
   // ── Legend section ─────────────────────────────────────
-  const legY = sepY + 6;
   pdf.setFontSize(9);
   pdf.setTextColor(60, 60, 60);
-  pdf.text('색상 범례 / Color Legend', MARGIN, legY);
+  pdf.text('색상 범례 / Color Legend', MARGIN, sepY + 5);
 
   const entries = Array.from(colorMap.values())
     .filter(e => e.regionCount > 0)
     .sort((a, b) => a.symbol.localeCompare(b.symbol, undefined, { numeric: true }));
 
-  const COLS    = 3;
-  const COL_W   = CONTENT_W / COLS;
-  const ROW_H   = 8;
-  const SWATCH  = 4;
-  const startY  = legY + 5;
+  const COLS   = 3;
+  const COL_W  = CONTENT_W / COLS;
+  const ROW_H  = 8;
+  const SWATCH = 4;
 
-  entries.forEach((entry, idx) => {
-    const col = idx % COLS;
-    const row = Math.floor(idx / COLS);
-    const x   = MARGIN + col * COL_W;
-    const y   = startY + row * ROW_H;
+  // Calculate how many rows fit on the first page vs. subsequent pages
+  const firstPageStartY = sepY + 11;
+  const firstPageRows   = Math.floor((PH - MARGIN - firstPageStartY) / ROW_H);
+  const extraPageRows   = Math.floor((PH - 2 * MARGIN) / ROW_H);
 
-    if (y + ROW_H > PH - MARGIN) return; // skip overflow
+  let entryIdx = 0;
+  let isFirstSection = true;
 
-    // Colour swatch
-    const [r, g, b] = entry.paintColor.rgb;
-    pdf.setFillColor(r, g, b);
-    pdf.rect(x, y - SWATCH + 1, SWATCH, SWATCH, 'F');
-    pdf.setDrawColor(160, 160, 160);
-    pdf.rect(x, y - SWATCH + 1, SWATCH, SWATCH, 'S');
+  while (entryIdx < entries.length) {
+    const rowsAvail = isFirstSection ? firstPageRows : extraPageRows;
+    const startY    = isFirstSection ? firstPageStartY : MARGIN;
+    const batchSize = rowsAvail * COLS;
 
-    // Symbol
-    pdf.setFontSize(7);
-    pdf.setTextColor(20, 20, 20);
-    pdf.text(entry.symbol, x + SWATCH + 2, y);
+    if (!isFirstSection) {
+      pdf.addPage();
+    }
 
-    // Paint name (Korean)
-    pdf.setTextColor(40, 40, 40);
-    pdf.text(entry.paintColor.nameKo, x + SWATCH + 9, y);
+    const batch = entries.slice(entryIdx, entryIdx + batchSize);
 
-    // Hex + region count
-    pdf.setTextColor(110, 110, 110);
-    pdf.text(`${entry.paintColor.hex}  ×${entry.regionCount}`, x + SWATCH + 9, y + 3.5);
-  });
+    batch.forEach((entry, idx) => {
+      const col = idx % COLS;
+      const row = Math.floor(idx / COLS);
+      const x   = MARGIN + col * COL_W;
+      const y   = startY + row * ROW_H;
+
+      // Colour swatch
+      const [r, g, b] = entry.paintColor.rgb;
+      pdf.setFillColor(r, g, b);
+      pdf.rect(x, y - SWATCH + 1, SWATCH, SWATCH, 'F');
+      pdf.setDrawColor(160, 160, 160);
+      pdf.rect(x, y - SWATCH + 1, SWATCH, SWATCH, 'S');
+
+      // Symbol
+      pdf.setFontSize(7);
+      pdf.setTextColor(20, 20, 20);
+      pdf.text(entry.symbol, x + SWATCH + 2, y);
+
+      // Paint name
+      pdf.setTextColor(40, 40, 40);
+      pdf.text(entry.paintColor.nameKo, x + SWATCH + 9, y);
+
+      // Hex + region count
+      pdf.setTextColor(110, 110, 110);
+      pdf.text(`${entry.paintColor.hex}  ×${entry.regionCount}`, x + SWATCH + 9, y + 3.5);
+    });
+
+    entryIdx      += batch.length;
+    isFirstSection = false;
+  }
 
   pdf.save('paint-by-number.pdf');
 }
