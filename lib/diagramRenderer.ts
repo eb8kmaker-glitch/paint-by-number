@@ -112,13 +112,14 @@ const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 2, medium: 1, high: 0 
 // K-means iterations per detail level — more iterations = better cluster separation
 const KMEANS_ITER: Record<DetailLevel, number> = { low: 20, medium: 30, high: 50 };
 
-// Outline gray level: clean = light gray, detailed = slightly darker
-const OUTLINE_GRAY: Record<Style, number> = { clean: 170, detailed: 120 };
+// Outline gray: lighter since 1px half-edge marking is now used (no double-marking)
+const OUTLINE_GRAY: Record<Style, number> = { clean: 192, detailed: 160 };
 
 const tick = () => new Promise<void>(r => setTimeout(r, 0));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Edge map: pixel is an edge if any 4-neighbour has a different cluster value
+// Edge map: mark only the left/top side of each boundary → true 1px lines
+// (checking all 4 neighbours marks both sides, doubling apparent thickness)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildEdgeMap(clusterMap: Int32Array, W: number, H: number): Uint8Array {
   const isEdge = new Uint8Array(W * H);
@@ -127,10 +128,8 @@ function buildEdgeMap(clusterMap: Int32Array, W: number, H: number): Uint8Array 
       const i = y * W + x;
       const c = clusterMap[i];
       if (
-        (x > 0     && clusterMap[i - 1] !== c) ||
-        (x < W - 1 && clusterMap[i + 1] !== c) ||
-        (y > 0     && clusterMap[i - W] !== c) ||
-        (y < H - 1 && clusterMap[i + W] !== c)
+        (x > 0 && clusterMap[i - 1] !== c) ||
+        (y > 0 && clusterMap[i - W] !== c)
       ) {
         isEdge[i] = 1;
       }
@@ -140,27 +139,59 @@ function buildEdgeMap(clusterMap: Int32Array, W: number, H: number): Uint8Array 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Label position: centroid, then spiral-search if centroid is on an edge pixel
+// Label position: find the interior point furthest from any boundary
+// (pole of inaccessibility approximation — works for concave regions)
 // ─────────────────────────────────────────────────────────────────────────────
 function findLabelPos(
   cx: number, cy: number,
-  isEdge: Uint8Array,
+  clusterMap: Int32Array,
+  colorIndex: number,
+  pixelCount: number,
   W: number, H: number,
 ): { x: number; y: number } {
   const sx = Math.round(cx), sy = Math.round(cy);
-  if (!isEdge[sy * W + sx]) return { x: sx, y: sy };
-  for (let r = 1; r <= 20; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-        const nx = sx + dx, ny = sy + dy;
-        if (nx >= 0 && nx < W && ny >= 0 && ny < H && !isEdge[ny * W + nx]) {
-          return { x: nx, y: ny };
+
+  // If centroid is inside the region and not on an edge, use it directly
+  const centroidIdx = sy * W + sx;
+  if (centroidIdx >= 0 && centroidIdx < W * H && clusterMap[centroidIdx] === colorIndex) {
+    // Quick check: is centroid well inside (not adjacent to boundary)?
+    const isInterior =
+      clusterMap[centroidIdx - 1] === colorIndex &&
+      clusterMap[centroidIdx + 1] === colorIndex &&
+      clusterMap[centroidIdx - W] === colorIndex &&
+      clusterMap[centroidIdx + W] === colorIndex;
+    if (isInterior) return { x: sx, y: sy };
+  }
+
+  // Sample region pixels and find the one with maximum inset distance
+  // Step size scales with region size for performance
+  const step = Math.max(1, Math.floor(pixelCount / 400));
+  let bestX = sx, bestY = sy, bestDist = -1;
+
+  // Scan bounding box of approximate centroid area
+  const scanR = Math.min(80, Math.ceil(Math.sqrt(pixelCount)));
+  const x0 = Math.max(1, sx - scanR), x1 = Math.min(W - 2, sx + scanR);
+  const y0 = Math.max(1, sy - scanR), y1 = Math.min(H - 2, sy + scanR);
+
+  for (let py = y0; py <= y1; py += step) {
+    for (let px = x0; px <= x1; px += step) {
+      if (clusterMap[py * W + px] !== colorIndex) continue;
+      // Distance to nearest non-colorIndex pixel (check expanding rings up to 20)
+      let dist = 0;
+      outer: for (let r = 1; r <= 20; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+            const nx = px + dx, ny = py + dy;
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) { dist = r; break outer; }
+            if (clusterMap[ny * W + nx] !== colorIndex) { dist = r; break outer; }
+          }
         }
       }
+      if (dist > bestDist) { bestDist = dist; bestX = px; bestY = py; }
     }
   }
-  return { x: sx, y: sy };
+  return { x: bestX, y: bestY };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -334,7 +365,7 @@ export async function generateDiagram(
 
     outCtx.font = `${fontSize}px Arial, sans-serif`;
 
-    const pos = findLabelPos(region.centroidX, region.centroidY, isEdge, W, H);
+    const pos = findLabelPos(region.centroidX, region.centroidY, clusterMap, region.colorIndex, region.pixelCount, W, H);
     outCtx.fillText(info.symbol, pos.x * scaleX, pos.y * scaleY);
   }
 
