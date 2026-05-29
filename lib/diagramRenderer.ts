@@ -99,17 +99,9 @@ const PROC_W = 800;
 // Gaussian blur radius before K-means (smooths noise → fewer jagged regions)
 const BLUR_RADIUS: Record<DetailLevel, number> = { low: 4, medium: 2, high: 1 };
 
-// Physical label sizes at 300 dpi — constant regardless of frame size
+// Physical label sizes at 300 dpi — pt-to-px at 300dpi (1pt = 300/72 px)
 const DPI = 300;
-const MM_TO_PX = DPI / 25.4; // ~11.81 px/mm
-const LABEL_PX = {
-  xl:      Math.round(2.4 * MM_TO_PX), // ~28px — large regions
-  large:   Math.round(2.0 * MM_TO_PX), // ~24px
-  medium:  Math.round(1.7 * MM_TO_PX), // ~20px
-  small:   Math.round(1.4 * MM_TO_PX), // ~17px
-  minimum: Math.round(1.1 * MM_TO_PX), // ~13px
-  tiny:    Math.round(0.9 * MM_TO_PX), // ~11px — very small regions
-};
+const PT_TO_PX = DPI / 72; // ~4.17 px/pt
 
 // Physical width in mm (used for mm² label area thresholds)
 const FRAME_WIDTH_MM: Record<CanvasSize, number> = {
@@ -126,13 +118,12 @@ function getLabelFontSize(
 ): number | null {
   const pxPerMm = outputWidthPx / frameMmWidth;
   const areaMm2 = regionPixelCount / (pxPerMm * pxPerMm);
-  if (areaMm2 < 3)   return null;
-  if (areaMm2 < 8)   return LABEL_PX.tiny;
-  if (areaMm2 < 15)  return LABEL_PX.minimum;
-  if (areaMm2 < 40)  return LABEL_PX.small;
-  if (areaMm2 < 100) return LABEL_PX.medium;
-  if (areaMm2 < 300) return LABEL_PX.large;
-  return LABEL_PX.xl;
+  if (areaMm2 < 3)   return null;                        // truly microscopic
+  if (areaMm2 < 8)   return Math.round(5 * PT_TO_PX);   // ~21px
+  if (areaMm2 < 15)  return Math.round(6 * PT_TO_PX);   // ~25px
+  if (areaMm2 < 40)  return Math.round(7 * PT_TO_PX);   // ~29px
+  if (areaMm2 < 100) return Math.round(8 * PT_TO_PX);   // ~33px
+  return Math.round(9 * PT_TO_PX);                       // ~37px — max
 }
 
 // Median filter passes after K-means — reduced to preserve distinct region boundaries
@@ -141,8 +132,17 @@ const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 2, medium: 1, high: 0 
 // K-means iterations per detail level — more iterations = better cluster separation
 const KMEANS_ITER: Record<DetailLevel, number> = { low: 20, medium: 30, high: 50 };
 
-// Outline gray: lighter since 1px half-edge marking is now used (no double-marking)
-const OUTLINE_GRAY: Record<Style, number> = { clean: 192, detailed: 160 };
+// Outline: soft gray with ~82% opacity (alpha=210) — visually present but paint-over-friendly
+const OUTLINE_COLOR: Record<Style, { r: number; g: number; b: number; a: number }> = {
+  clean:    { r: 200, g: 200, b: 200, a: 210 }, // #C8C8C8 ~82% opacity
+  detailed: { r: 180, g: 180, b: 180, a: 210 }, // #B4B4B4 ~82% opacity
+};
+
+// Label color: ~15% darker than outline — visible but fully covered by acrylic paint
+const LABEL_COLOR: Record<Style, string> = {
+  clean:    '#A0A0A0',
+  detailed: '#8C8C8C',
+};
 
 const tick = () => new Promise<void>(r => setTimeout(r, 0));
 
@@ -399,15 +399,16 @@ function renderToCanvas(
   colorMode:  ColorMode,
   canvasSize: CanvasSize,
 ): { canvas: HTMLCanvasElement; labeledCount: number } {
-  const gray   = OUTLINE_GRAY[style];
-  const edgeId = new ImageData(W, H);
-  const ep     = edgeId.data;
-  const TINT   = 0.30; // 30% color + 70% white
+  const outline = OUTLINE_COLOR[style];
+  const edgeId  = new ImageData(W, H);
+  const ep      = edgeId.data;
+  const TINT    = 0.30; // 30% color + 70% white
 
   for (let i = 0; i < W * H; i++) {
     const b = i * 4;
     if (isEdge[i]) {
-      ep[b] = gray; ep[b + 1] = gray; ep[b + 2] = gray;
+      ep[b] = outline.r; ep[b + 1] = outline.g; ep[b + 2] = outline.b; ep[b + 3] = outline.a;
+      continue;
     } else if (colorMode === 'tint') {
       const paint = clusterToPaint[clusterMap[i]];
       const [r, g, bl] = paint?.rgb ?? [255, 255, 255];
@@ -436,7 +437,7 @@ function renderToCanvas(
   const frameMmWidth = FRAME_WIDTH_MM[canvasSize];
   outCtx.textAlign    = 'center';
   outCtx.textBaseline = 'middle';
-  outCtx.fillStyle    = colorMode === 'tint' ? '#222222' : '#444444';
+  outCtx.fillStyle    = LABEL_COLOR[style];
 
   let labeledCount = 0;
   for (const region of regions) {
