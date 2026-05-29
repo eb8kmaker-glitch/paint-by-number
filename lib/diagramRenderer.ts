@@ -1,5 +1,6 @@
 // Client-side only — uses HTMLImageElement, HTMLCanvasElement
 import { rgbToLab, kMeans, mapToNearestPaint, generateSymbols } from '@/lib/colorUtils';
+import { segmentRegions } from '@/lib/regionSegmentation';
 import { PaintColor } from '@/constants/paintColors';
 
 export type DetailLevel = 'low' | 'medium' | 'high';
@@ -8,31 +9,31 @@ export type Style       = 'clean' | 'detailed';
 export type FitMode     = 'fit' | 'fill';
 
 export interface FrameSpec {
-  nameKo: string;  // e.g. "4호"
-  nameEn: string;  // e.g. "F4"
-  w: number;       // mm width
-  h: number;       // mm height
+  nameKo: string;
+  nameEn: string;
+  w: number;       // mm
+  h: number;       // mm
   group: 'small' | 'large';
 }
 
 export const FRAME_SPECS: Record<CanvasSize, FrameSpec | null> = {
-  f4:     { nameKo: '4호',   nameEn: 'F4',  w: 333,  h: 242,  group: 'small' },
-  f6:     { nameKo: '6호',   nameEn: 'F6',  w: 410,  h: 318,  group: 'small' },
-  f8:     { nameKo: '8호',   nameEn: 'F8',  w: 455,  h: 380,  group: 'small' },
-  f10:    { nameKo: '10호',  nameEn: 'F10', w: 530,  h: 455,  group: 'small' },
-  f12:    { nameKo: '12호',  nameEn: 'F12', w: 606,  h: 500,  group: 'large' },
-  f15:    { nameKo: '15호',  nameEn: 'F15', w: 652,  h: 530,  group: 'large' },
-  f20:    { nameKo: '20호',  nameEn: 'F20', w: 727,  h: 606,  group: 'large' },
-  f30:    { nameKo: '30호',  nameEn: 'F30', w: 910,  h: 727,  group: 'large' },
-  f50:    { nameKo: '50호',  nameEn: 'F50', w: 1167, h: 910,  group: 'large' },
+  f4:     { nameKo: '4호',  nameEn: 'F4',  w: 333,  h: 242,  group: 'small' },
+  f6:     { nameKo: '6호',  nameEn: 'F6',  w: 410,  h: 318,  group: 'small' },
+  f8:     { nameKo: '8호',  nameEn: 'F8',  w: 455,  h: 380,  group: 'small' },
+  f10:    { nameKo: '10호', nameEn: 'F10', w: 530,  h: 455,  group: 'small' },
+  f12:    { nameKo: '12호', nameEn: 'F12', w: 606,  h: 500,  group: 'large' },
+  f15:    { nameKo: '15호', nameEn: 'F15', w: 652,  h: 530,  group: 'large' },
+  f20:    { nameKo: '20호', nameEn: 'F20', w: 727,  h: 606,  group: 'large' },
+  f30:    { nameKo: '30호', nameEn: 'F30', w: 910,  h: 727,  group: 'large' },
+  f50:    { nameKo: '50호', nameEn: 'F50', w: 1167, h: 910,  group: 'large' },
   square: null,
 };
 
 export interface CropRegion {
-  x: number; // source x in pixels
-  y: number; // source y in pixels
-  w: number; // source width in pixels
-  h: number; // source height in pixels
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export interface DiagramSettings {
@@ -40,7 +41,7 @@ export interface DiagramSettings {
   detailLevel: DetailLevel;
   canvasSize:  CanvasSize;
   fitMode:     FitMode;
-  cropRegion:  CropRegion | null; // null = auto-center crop (fill) or full image (fit)
+  cropRegion:  CropRegion | null;
   style:       Style;
 }
 
@@ -54,10 +55,10 @@ export interface ColorInfo {
 
 export interface DiagramResult {
   canvas:   HTMLCanvasElement;
-  colorMap: Map<number, ColorInfo>; // clusterIndex → info
+  colorMap: Map<number, ColorInfo>;
 }
 
-// Output dimensions at 300 DPI (mm / 25.4 * 300, rounded)
+// Output dimensions at 300 DPI
 export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
   f4:     { w: 3937,  h: 2858  },
   f6:     { w: 4843,  h: 3756  },
@@ -71,67 +72,116 @@ export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
   square: { w: 2480,  h: 2480  },
 };
 
-// Maximum processing width (px) — K-means runs at this resolution
-const MAX_PROC_W = 800;
+// Processing resolution width.  K-means and segmentation run at this size.
+const PROC_W = 800;
 
-// Minimum region pixel area to receive a label (per detail level, at processing resolution)
-const MIN_LABEL_PX: Record<DetailLevel, number> = {
-  low:    600,
-  medium: 200,
-  high:   60,
-};
-
-// Yield to the browser so React can re-render the progress bar
 const tick = () => new Promise<void>(r => setTimeout(r, 0));
 
-// ─────────────────────────────────────────────────────────
-// Unsharp-mask sharpening (3×3 convolution)
-// Applies in-place to the pixel buffer of a W×H canvas.
-// Helps low-res images produce crisper region boundaries.
-// ─────────────────────────────────────────────────────────
-function applySharpen(ctx: CanvasRenderingContext2D, W: number, H: number, amount = 0.6): void {
-  const id = ctx.getImageData(0, 0, W, H);
+// ─────────────────────────────────────────────────────────────────────────────
+// Unsharp-mask sharpening — applied before K-means for low-res source images
+// ─────────────────────────────────────────────────────────────────────────────
+function applySharpen(ctx: CanvasRenderingContext2D, W: number, H: number, amount = 0.7): void {
+  const id  = ctx.getImageData(0, 0, W, H);
   const src = new Uint8ClampedArray(id.data);
   const dst = id.data;
-
-  // Sharpen kernel: identity + amount * (identity - blur)
-  // Equivalent to: out = src + amount*(src - blur(src))
-  const k = amount;
   for (let y = 1; y < H - 1; y++) {
     for (let x = 1; x < W - 1; x++) {
       const i = (y * W + x) * 4;
       for (let c = 0; c < 3; c++) {
         const center = src[i + c];
-        const neighbours =
-          src[((y-1)*W + x    ) * 4 + c] +
-          src[((y+1)*W + x    ) * 4 + c] +
-          src[(y    *W + x - 1) * 4 + c] +
-          src[(y    *W + x + 1) * 4 + c];
-        const blurred = neighbours / 4;
-        dst[i + c] = Math.max(0, Math.min(255, Math.round(center + k * (center - blurred))));
+        const blur   = (src[((y-1)*W+x)*4+c] + src[((y+1)*W+x)*4+c] +
+                        src[(y*W+x-1)*4+c]   + src[(y*W+x+1)*4+c]) / 4;
+        dst[i + c] = Math.max(0, Math.min(255, Math.round(center + amount * (center - blur))));
       }
     }
   }
   ctx.putImageData(id, 0, 0);
 }
 
-// ─────────────────────────────────────────────────────────
-// Main entry point
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Build isEdge map: a pixel is an edge if any 4-neighbour has a different color
+// ─────────────────────────────────────────────────────────────────────────────
+function buildEdgeMap(clusterMap: Int32Array, W: number, H: number): Uint8Array {
+  const isEdge = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const c = clusterMap[i];
+      if (
+        (x > 0     && clusterMap[i - 1] !== c) ||
+        (x < W - 1 && clusterMap[i + 1] !== c) ||
+        (y > 0     && clusterMap[i - W] !== c) ||
+        (y < H - 1 && clusterMap[i + W] !== c)
+      ) {
+        isEdge[i] = 1;
+      }
+    }
+  }
+  return isEdge;
+}
 
+// Morphological dilation: expand edges by 1 pixel (used for medium detail)
+function dilateEdges(isEdge: Uint8Array, W: number, H: number): Uint8Array {
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (
+        isEdge[i] ||
+        (x > 0     && isEdge[i - 1]) ||
+        (x < W - 1 && isEdge[i + 1]) ||
+        (y > 0     && isEdge[i - W]) ||
+        (y < H - 1 && isEdge[i + W])
+      ) {
+        out[i] = 1;
+      }
+    }
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Find a good label position for a region.
+// Start from centroid; if that lands on an edge pixel, spiral outward to find
+// the nearest interior pixel.
+// ─────────────────────────────────────────────────────────────────────────────
+function findLabelPos(
+  cx: number, cy: number,
+  isEdge: Uint8Array,
+  W: number, H: number,
+): { x: number; y: number } {
+  const sx = Math.round(cx), sy = Math.round(cy);
+  if (!isEdge[sy * W + sx]) return { x: sx, y: sy };
+
+  // Spiral search for nearest non-edge pixel
+  for (let r = 1; r <= 20; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; // perimeter only
+        const nx = sx + dx, ny = sy + dy;
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        if (!isEdge[ny * W + nx]) return { x: nx, y: ny };
+      }
+    }
+  }
+  return { x: sx, y: sy }; // fallback
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main entry point
+// ─────────────────────────────────────────────────────────────────────────────
 export async function generateDiagram(
   img: HTMLImageElement,
   settings: DiagramSettings,
   onProgress?: (pct: number) => void,
 ): Promise<DiagramResult> {
-  // ── 1. Determine target canvas dimensions ──────────────
+
+  // ── 1. Target output dimensions ──────────────────────────────────────────
   const { w: TW, h: TH } = CANVAS_DIMS[settings.canvasSize];
   const targetAR = TW / TH;
 
-  // ── 2. Determine source crop / fit parameters ──────────
-  // Processing canvas always has the target aspect ratio so
-  // the result maps 1:1 when scaled up to TW×TH.
-  const W = MAX_PROC_W;
+  // ── 2. Build processing canvas at PROC_W × procH (matching target AR) ────
+  const W = PROC_W;
   const H = Math.round(W / targetAR);
 
   const srcCanvas = document.createElement('canvas');
@@ -141,72 +191,58 @@ export async function generateDiagram(
   srcCtx.fillRect(0, 0, W, H);
 
   if (settings.fitMode === 'fit') {
-    // Letterbox: scale image to fit inside W×H, center it
     const imgAR = img.naturalWidth / img.naturalHeight;
     let dw = W, dh = H;
     if (imgAR > targetAR) { dh = W / imgAR; } else { dw = H * imgAR; }
-    const dx = (W - dw) / 2;
-    const dy = (H - dh) / 2;
-    srcCtx.drawImage(img, dx, dy, dw, dh);
+    srcCtx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
   } else {
-    // Fill: crop image to target AR, use cropRegion or auto-center
     let cropX: number, cropY: number, cropW: number, cropH: number;
-
     if (settings.cropRegion) {
       ({ x: cropX, y: cropY, w: cropW, h: cropH } = settings.cropRegion);
     } else {
-      // Auto-center crop
       const imgAR = img.naturalWidth / img.naturalHeight;
       if (imgAR > targetAR) {
-        cropH = img.naturalHeight;
-        cropW = cropH * targetAR;
-        cropX = (img.naturalWidth - cropW) / 2;
-        cropY = 0;
+        cropH = img.naturalHeight; cropW = cropH * targetAR;
+        cropX = (img.naturalWidth - cropW) / 2; cropY = 0;
       } else {
-        cropW = img.naturalWidth;
-        cropH = cropW / targetAR;
-        cropX = 0;
-        cropY = (img.naturalHeight - cropH) / 2;
+        cropW = img.naturalWidth; cropH = cropW / targetAR;
+        cropX = 0; cropY = (img.naturalHeight - cropH) / 2;
       }
     }
     srcCtx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, W, H);
   }
 
-  // Apply sharpening when source image is low-res (< 500K px) to improve
-  // region boundary definition before K-means clustering
-  const srcPixels = img.naturalWidth * img.naturalHeight;
-  if (srcPixels < 500_000) {
+  // Apply sharpening for low-res source images
+  if (img.naturalWidth * img.naturalHeight < 500_000) {
     applySharpen(srcCtx, W, H, 0.7);
   }
 
-  const { data: px } = srcCtx.getImageData(0, 0, W, H); // RGBA flat
-
+  const { data: px } = srcCtx.getImageData(0, 0, W, H);
   onProgress?.(5); await tick();
 
-  // ── 3. Sample pixels for K-means ───────────────────────
+  // ── 3. Sample pixels and run K-means in LAB space ─────────────────────────
   const STEP = 4;
   const sampled: [number, number, number][] = [];
-  for (let y = 0; y < H; y += STEP) {
+  for (let y = 0; y < H; y += STEP)
     for (let x = 0; x < W; x += STEP) {
       const i = (y * W + x) * 4;
       sampled.push(rgbToLab(px[i], px[i + 1], px[i + 2]));
     }
-  }
 
-  onProgress?.(10); await tick();
+  const K = settings.detailLevel === 'low'
+    ? Math.min(settings.colorCount, 16)
+    : settings.colorCount;
 
-  // ── 4. K-means in LAB space ────────────────────────────
-  const K = settings.colorCount;
+  onProgress?.(8); await tick();
   const { centers } = kMeans(sampled, K, 25);
+  onProgress?.(38); await tick();
 
-  onProgress?.(40); await tick();
-
-  // ── 5. Assign every pixel to nearest cluster ────────────
+  // ── 4. Assign every pixel to nearest cluster ──────────────────────────────
   const clusterMap = new Int32Array(W * H);
   const labDistSq = (
     [L1, a1, b1]: [number, number, number],
     [L2, a2, b2]: [number, number, number],
-  ) => (L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2;
+  ) => (L1-L2)**2 + (a1-a2)**2 + (b1-b2)**2;
 
   for (let i = 0; i < W * H; i++) {
     const lab = rgbToLab(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
@@ -218,162 +254,114 @@ export async function generateDiagram(
     clusterMap[i] = best;
   }
 
-  onProgress?.(60); await tick();
+  onProgress?.(55); await tick();
 
-  // ── 6. Map cluster centres → nearest paint colour ────────
+  // ── 5. Map cluster centres → paint colours ────────────────────────────────
   const clusterToPaint = centers.map(c => mapToNearestPaint(c));
   const symbols        = generateSymbols(K);
 
-  // ── 7. Connected components (BFS) ───────────────────────
-  const visited  = new Uint8Array(W * H);
-  const bfsQueue = new Int32Array(W * H);
-  const componentsByClu = new Map<number, Array<{ size: number; cx: number; cy: number }>>();
+  // ── 6. Region segmentation + merging (mutates clusterMap) ─────────────────
+  const regions = segmentRegions(clusterMap, W, H, settings.detailLevel);
+  onProgress?.(70); await tick();
 
-  for (let start = 0; start < W * H; start++) {
-    if (visited[start]) continue;
-    const clu = clusterMap[start];
-    visited[start] = 1;
+  // ── 7. Build edge map (boundaries between colour regions) ─────────────────
+  let isEdge = buildEdgeMap(clusterMap, W, H);
 
-    let head = 0, tail = 0;
-    bfsQueue[tail++] = start;
-    let sumX = 0, sumY = 0, size = 0;
-
-    while (head < tail) {
-      const idx = bfsQueue[head++];
-      const x = idx % W;
-      const y = (idx / W) | 0;
-      sumX += x; sumY += y; size++;
-
-      const nbrs = [
-        y > 0     ? idx - W : -1,
-        y < H - 1 ? idx + W : -1,
-        x > 0     ? idx - 1 : -1,
-        x < W - 1 ? idx + 1 : -1,
-      ];
-      for (const n of nbrs) {
-        if (n >= 0 && !visited[n] && clusterMap[n] === clu) {
-          visited[n] = 1;
-          bfsQueue[tail++] = n;
-        }
-      }
-    }
-
-    const comp = componentsByClu.get(clu);
-    const entry = { size, cx: sumX / size, cy: sumY / size };
-    if (comp) comp.push(entry);
-    else componentsByClu.set(clu, [entry]);
+  // Medium detail: slightly dilate outlines for easier painting
+  if (settings.detailLevel === 'medium') {
+    isEdge = dilateEdges(isEdge, W, H);
   }
 
-  onProgress?.(75); await tick();
-
-  // ── 8. Build edge map ─────────────────────────────────
-  const isEdge = new Uint8Array(W * H);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
-      const c = clusterMap[i];
-      if (x < W - 1 && clusterMap[i + 1] !== c) { isEdge[i] = 1; isEdge[i + 1] = 1; }
-      if (y < H - 1 && clusterMap[i + W] !== c) { isEdge[i] = 1; isEdge[i + W] = 1; }
-    }
-  }
-
+  // Detailed style: extra dilation pass for bolder outlines
   if (settings.style === 'detailed') {
-    applySobelOverlay(px, W, H, isEdge, 40);
+    isEdge = dilateEdges(isEdge, W, H);
   }
 
-  onProgress?.(85); await tick();
+  onProgress?.(80); await tick();
 
-  // ── 9. Render low-res edge canvas ─────────────────────
+  // ── 8. Render low-res outline canvas (white bg, black outlines) ───────────
   const edgeCanvas = document.createElement('canvas');
   edgeCanvas.width = W; edgeCanvas.height = H;
-  const edgeCtx = edgeCanvas.getContext('2d')!;
-  edgeCtx.fillStyle = '#ffffff';
-  edgeCtx.fillRect(0, 0, W, H);
+  const edgeCtx    = edgeCanvas.getContext('2d')!;
 
-  const edgeData = edgeCtx.getImageData(0, 0, W, H);
-  const edgePx   = edgeData.data;
-  const edgeGray = settings.style === 'clean' ? 185 : 140;
+  const edgeId = edgeCtx.createImageData(W, H);
+  const edgePx = edgeId.data;
   for (let i = 0; i < W * H; i++) {
+    const base = i * 4;
     if (isEdge[i]) {
-      edgePx[i * 4]     = edgeGray;
-      edgePx[i * 4 + 1] = edgeGray;
-      edgePx[i * 4 + 2] = edgeGray;
-      edgePx[i * 4 + 3] = 255;
+      edgePx[base]     = 0;
+      edgePx[base + 1] = 0;
+      edgePx[base + 2] = 0;
+    } else {
+      edgePx[base]     = 255;
+      edgePx[base + 1] = 255;
+      edgePx[base + 2] = 255;
     }
+    edgePx[base + 3] = 255;
   }
-  edgeCtx.putImageData(edgeData, 0, 0);
+  edgeCtx.putImageData(edgeId, 0, 0);
 
-  // ── 10. Scale edges up to final target resolution ─────
+  // ── 9. Scale edge canvas to final output resolution (nearest-neighbour) ───
   const outCanvas = document.createElement('canvas');
   outCanvas.width  = TW;
   outCanvas.height = TH;
   const outCtx = outCanvas.getContext('2d')!;
-  // Nearest-neighbour keeps edges crisp (no anti-alias blur)
   outCtx.imageSmoothingEnabled = false;
   outCtx.drawImage(edgeCanvas, 0, 0, TW, TH);
 
-  // ── 11. Draw region labels at full resolution ─────────
-  const minPx    = MIN_LABEL_PX[settings.detailLevel];
-  const fontSize = Math.max(20, Math.round(TW / 70));
-  const scaleX   = TW / W;
-  const scaleY   = TH / H;
+  onProgress?.(88); await tick();
+
+  // ── 10. Place labels at final resolution ──────────────────────────────────
+  //
+  // Font size scales with region pixel area (at processing resolution):
+  //   < 500 px   → skip
+  //   < 2 000 px → tiny
+  //   < 8 000 px → small
+  //   ≥ 8 000 px → normal
+  //
+  const scaleX = TW / W;
+  const scaleY = TH / H;
+  const baseFS = Math.max(16, Math.round(TW / 100)); // font size at output res for "normal"
 
   outCtx.textAlign    = 'center';
   outCtx.textBaseline = 'middle';
-  outCtx.font         = `bold ${fontSize}px Arial, sans-serif`;
-  outCtx.fillStyle    = '#333333';
+  outCtx.fillStyle    = '#222222';
 
+  // Build colorMap: one entry per cluster, aggregating region counts
   const colorMap = new Map<number, ColorInfo>();
-
-  for (let clu = 0; clu < K; clu++) {
-    const comps      = componentsByClu.get(clu) ?? [];
-    const totalPx    = comps.reduce((s, c) => s + c.size, 0);
-    const significant = comps.filter(c => c.size >= minPx);
-
-    colorMap.set(clu, {
-      paintColor:  clusterToPaint[clu],
-      symbol:      symbols[clu],
-      regionCount: significant.length,
-      pixelCount:  totalPx,
-      clusterLab:  centers[clu],
+  for (let c = 0; c < K; c++) {
+    colorMap.set(c, {
+      paintColor:  clusterToPaint[c],
+      symbol:      symbols[c],
+      regionCount: 0,
+      pixelCount:  0,
+      clusterLab:  centers[c],
     });
+  }
 
-    for (const comp of significant) {
-      outCtx.fillText(symbols[clu], comp.cx * scaleX, comp.cy * scaleY);
-    }
+  for (const region of regions) {
+    const ci = region.colorIndex;
+    const info = colorMap.get(ci);
+    if (!info) continue;
+
+    info.regionCount++;
+    info.pixelCount += region.pixelCount;
+
+    // Skip tiny regions (no label)
+    if (region.pixelCount < 500) continue;
+
+    // Font size proportional to region size
+    const fs = region.pixelCount < 2000 ? Math.round(baseFS * 0.55)
+             : region.pixelCount < 8000 ? Math.round(baseFS * 0.75)
+             : baseFS;
+
+    outCtx.font = `bold ${fs}px Arial, sans-serif`;
+
+    // Find label position (avoid outline pixels)
+    const pos = findLabelPos(region.centroidX, region.centroidY, isEdge, W, H);
+    outCtx.fillText(info.symbol, pos.x * scaleX, pos.y * scaleY);
   }
 
   onProgress?.(100);
   return { canvas: outCanvas, colorMap };
-}
-
-// ─────────────────────────────────────────────────────────
-// Sobel edge overlay helper
-// ─────────────────────────────────────────────────────────
-
-function applySobelOverlay(
-  src: Uint8ClampedArray,
-  W: number,
-  H: number,
-  isEdge: Uint8Array,
-  threshold: number,
-): void {
-  const gray = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) {
-    gray[i] = 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2];
-  }
-
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      const tl = gray[(y-1)*W+(x-1)], tc = gray[(y-1)*W+x], tr = gray[(y-1)*W+(x+1)];
-      const ml = gray[y*W+(x-1)],                             mr = gray[y*W+(x+1)];
-      const bl = gray[(y+1)*W+(x-1)], bc = gray[(y+1)*W+x], br = gray[(y+1)*W+(x+1)];
-
-      const gx = -tl - 2*ml - bl + tr + 2*mr + br;
-      const gy = -tl - 2*tc - tr + bl + 2*bc + br;
-      if (Math.sqrt(gx*gx + gy*gy) > threshold) {
-        isEdge[y * W + x] = 1;
-      }
-    }
-  }
 }
