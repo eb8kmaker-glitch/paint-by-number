@@ -2,10 +2,12 @@
 import { ColorInfo } from '@/lib/diagramRenderer';
 
 interface Props {
-  colorMap: Map<number, ColorInfo>;
+  colorMap:           Map<number, ColorInfo>;
+  labeledRegionCount?: number;
+  totalRegionCount?:   number;
 }
 
-export default function ColorLegend({ colorMap }: Props) {
+export default function ColorLegend({ colorMap, labeledRegionCount, totalRegionCount }: Props) {
   const entries = Array.from(colorMap.values())
     .filter(e => e.regionCount > 0)
     .sort((a, b) => a.symbol.localeCompare(b.symbol, undefined, { numeric: true }));
@@ -123,6 +125,9 @@ export default function ColorLegend({ colorMap }: Props) {
 
       <p style={{ fontSize: '0.625rem', color: 'var(--color-muted)', marginTop: '8px', textAlign: 'right', opacity: 0.8 }}>
         총 {entries.length}색 / {entries.reduce((s, e) => s + e.regionCount, 0)}구역
+        {labeledRegionCount !== undefined && totalRegionCount !== undefined && (
+          <> · 번호 표시 {labeledRegionCount}/{totalRegionCount}</>
+        )}
       </p>
     </div>
   );

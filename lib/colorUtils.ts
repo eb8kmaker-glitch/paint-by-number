@@ -220,16 +220,7 @@ export function mapToNearestPaint(lab: [number, number, number]): PaintColor {
 // ─────────────────────────────────────────────
 
 export function generateSymbols(count: number): string[] {
-  const out: string[] = [];
-  for (let i = 1; i <= 9 && out.length < count; i++) out.push(String(i));
-  for (let i = 0; i < 26 && out.length < count; i++) out.push(String.fromCharCode(65 + i));
-  outer: for (let n = 1; n <= 9; n++) {
-    for (let l = 0; l < 26; l++) {
-      if (out.length >= count) break outer;
-      out.push(`${n}${String.fromCharCode(65 + l)}`);
-    }
-  }
-  return out.slice(0, count);
+  return Array.from({ length: count }, (_, i) => String(i + 1));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
