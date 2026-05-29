@@ -9,31 +9,6 @@ const MARGIN = 15;
 const CONTENT_W = A4_W - 2 * MARGIN;
 const CONTENT_H = A4_H - 2 * MARGIN;
 
-async function loadKoreanFont(doc: import('jspdf').jsPDF): Promise<boolean> {
-  try {
-    const response = await fetch('/fonts/NotoSansKR-Regular.ttf');
-    if (!response.ok) return false;
-    const fontBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(fontBuffer);
-    const CHUNK = 0x8000;
-    const parts: string[] = [];
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-      parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
-    }
-    const fontBase64 = btoa(parts.join(''));
-    doc.addFileToVFS('NotoSansKR-Regular.ttf', fontBase64);
-    doc.addFont('NotoSansKR-Regular.ttf', 'NotoSansKR', 'normal');
-    doc.setFont('NotoSansKR', 'normal');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function sk(doc: import('jspdf').jsPDF, loaded: boolean) {
-  if (loaded) doc.setFont('NotoSansKR', 'normal');
-}
-
 // Load an image from a data URL safely (with error + timeout guard)
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -45,7 +20,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Scale a canvas down so its longest side is ≤ maxSide.
+// Scale a canvas down so its longest side is <= maxSide.
 // Returns the original canvas unchanged if it already fits.
 function scaleCanvas(src: HTMLCanvasElement, maxSide: number): HTMLCanvasElement {
   const ratio = Math.min(1, maxSide / Math.max(src.width, src.height));
@@ -70,17 +45,15 @@ export async function exportToPdf(
   const { jsPDF } = await import('jspdf');
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const KR = await loadKoreanFont(pdf);
 
   const frameSpec = FRAME_SPECS[canvasSize];
   const frameName = frameSpec
-    ? `${frameSpec.nameKo} / ${frameSpec.w}×${frameSpec.h}mm`
+    ? `${frameSpec.nameEn} / ${frameSpec.w}x${frameSpec.h}mm`
     : canvasSize.toUpperCase();
 
   // ══════════════════════════════════════════════════════════════
   // Page 1 — Cover
   // ══════════════════════════════════════════════════════════════
-  sk(pdf, KR);
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
   pdf.setFillColor(139, 109, 56);
@@ -88,8 +61,7 @@ export async function exportToPdf(
 
   pdf.setFontSize(22);
   pdf.setTextColor(44, 34, 24);
-  sk(pdf, KR);
-  pdf.text('페인트 바이 넘버 도안', A4_W / 2, 30, { align: 'center' });
+  pdf.text('Paint by Number', A4_W / 2, 30, { align: 'center' });
   pdf.setFontSize(11);
   pdf.setTextColor(100, 85, 65);
   pdf.text('Paint by Number Diagram', A4_W / 2, 38, { align: 'center' });
@@ -116,11 +88,12 @@ export async function exportToPdf(
   }
 
   const metaY = thumbY + 5;
+  const dateStr = metadata?.date ?? new Date().toLocaleDateString('en-US');
   const rows: [string, string][] = [
-    ['생성일 / Date', metadata?.date ?? new Date().toLocaleDateString('ko-KR')],
-    ['색상 수 / Color Count', String(metadata?.colorCount ?? colorMap.size)],
-    ['액자 규격 / Frame Size', frameName],
-    ['세부 수준 / Detail Level', metadata?.detailLevel ?? '-'],
+    ['Date', dateStr],
+    ['Color Count', String(metadata?.colorCount ?? colorMap.size)],
+    ['Frame Size', frameName],
+    ['Detail Level', metadata?.detailLevel ?? '-'],
   ];
   const tableX = MARGIN + 15;
   const tableW = CONTENT_W - 30;
@@ -132,7 +105,6 @@ export async function exportToPdf(
       pdf.setFillColor(245, 240, 232);
       pdf.rect(tableX, y - 6.5, tableW, cellH, 'F');
     }
-    sk(pdf, KR);
     pdf.setTextColor(100, 85, 65);
     pdf.text(label, tableX + 3, y);
     pdf.setTextColor(44, 34, 24);
@@ -151,7 +123,6 @@ export async function exportToPdf(
   // Page 2 — Color Guide
   // ══════════════════════════════════════════════════════════════
   pdf.addPage();
-  sk(pdf, KR);
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
   pdf.setFillColor(139, 109, 56);
@@ -159,17 +130,14 @@ export async function exportToPdf(
 
   pdf.setFontSize(16);
   pdf.setTextColor(44, 34, 24);
-  sk(pdf, KR);
-  pdf.text('색상 가이드 / Color Guide', MARGIN, 22);
+  pdf.text('Color Guide', MARGIN, 22);
   pdf.setDrawColor(180, 150, 100);
   pdf.setLineWidth(0.4);
   pdf.line(MARGIN, 26, A4_W - MARGIN, 26);
 
   pdf.setFontSize(8.5);
   pdf.setTextColor(70, 60, 50);
-  sk(pdf, KR);
-  pdf.text('도안의 각 구역에 표시된 기호에 해당하는 색상으로 채색하세요.', MARGIN, 33);
-  pdf.text('Fill each numbered region with the corresponding paint color.', MARGIN, 38);
+  pdf.text('Fill each region with the paint color matching its symbol.', MARGIN, 33);
 
   const entries = Array.from(colorMap.values())
     .filter(e => e.regionCount > 0)
@@ -178,14 +146,15 @@ export async function exportToPdf(
   const SWATCH_SIZE = 12;
   const ROW_H = 14;
   const COL_W = CONTENT_W / 2;
-  let curY = 45;
+  let curY = 42;
 
-  // Column headers (left column only — right col uses same offsets)
-  (['기호', '색상', '이름', 'HEX', '구역'] as const).forEach((h, hi) => {
-    const x = MARGIN + [0, 16, 30, 68, 90][hi];
+  // Column headers
+  const headers = ['Sym', 'Color', 'Name', 'HEX', 'Zones'];
+  const hOffsets = [0, 16, 30, 68, 90];
+  headers.forEach((h, hi) => {
+    const x = MARGIN + hOffsets[hi];
     pdf.setFontSize(7);
     pdf.setTextColor(100, 85, 65);
-    sk(pdf, KR);
     pdf.text(h, x, curY);
   });
   curY += 5;
@@ -212,8 +181,7 @@ export async function exportToPdf(
     pdf.text(entry.symbol, baseX + 14, y - 2);
     pdf.setFontSize(7);
     pdf.setTextColor(40, 40, 40);
-    sk(pdf, KR);
-    pdf.text(entry.paintColor.nameKo, baseX + 28, y - 2);
+    pdf.text(entry.paintColor.name, baseX + 28, y - 2);
     pdf.setTextColor(80, 80, 80);
     pdf.text(entry.paintColor.hex, baseX + 66, y - 2);
     pdf.setTextColor(100, 85, 65);
@@ -256,7 +224,6 @@ export async function exportToPdf(
     for (let tx = 0; tx < tilesX; tx++) {
       tileNum++;
       pdf.addPage();
-      sk(pdf, KR);
 
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, A4_W, A4_H, 'F');
@@ -294,7 +261,6 @@ export async function exportToPdf(
 
       pdf.setFontSize(7);
       pdf.setTextColor(120, 100, 80);
-      sk(pdf, KR);
       pdf.text('1 zone = 10mm', MARGIN, MARGIN + srcH_mm + 6);
       pdf.setTextColor(150, 130, 100);
       pdf.text('Paint by Number Generator — paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
@@ -306,7 +272,6 @@ export async function exportToPdf(
   // ══════════════════════════════════════════════════════════════
   if (originalImageDataUrl) {
     pdf.addPage();
-    sk(pdf, KR);
     pdf.setFillColor(253, 250, 245);
     pdf.rect(0, 0, A4_W, A4_H, 'F');
     pdf.setFillColor(139, 109, 56);
@@ -314,8 +279,7 @@ export async function exportToPdf(
 
     pdf.setFontSize(14);
     pdf.setTextColor(44, 34, 24);
-    sk(pdf, KR);
-    pdf.text('완성 참고 이미지 / Original Reference', A4_W / 2, 20, { align: 'center' });
+    pdf.text('Reference Image', A4_W / 2, 20, { align: 'center' });
     pdf.setDrawColor(180, 150, 100);
     pdf.setLineWidth(0.4);
     pdf.line(MARGIN + 10, 24, A4_W - MARGIN - 10, 24);
@@ -330,8 +294,7 @@ export async function exportToPdf(
 
       pdf.setFontSize(8.5);
       pdf.setTextColor(100, 85, 65);
-      sk(pdf, KR);
-      pdf.text('채색 시 이 이미지를 참고하세요 / Use this image as reference while painting',
+      pdf.text('Use this image as reference while painting.',
         A4_W / 2, 30 + ih + 8, { align: 'center' });
     } catch { /* skip reference image on error */ }
 
