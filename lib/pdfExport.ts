@@ -14,9 +14,8 @@ async function loadKoreanFont(doc: import('jspdf').jsPDF): Promise<boolean> {
     const response = await fetch('/fonts/NotoSansKR-Regular.ttf');
     if (!response.ok) return false;
     const fontBuffer = await response.arrayBuffer();
-    // Chunk-based btoa — avoids O(n²) string concat and spread-stack overflow
     const bytes = new Uint8Array(fontBuffer);
-    const CHUNK = 0x8000; // 32 KB
+    const CHUNK = 0x8000;
     const parts: string[] = [];
     for (let i = 0; i < bytes.length; i += CHUNK) {
       parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
@@ -31,12 +30,35 @@ async function loadKoreanFont(doc: import('jspdf').jsPDF): Promise<boolean> {
   }
 }
 
-let _koreanFontLoaded = false;
-
-function setKoreanIfLoaded(doc: import('jspdf').jsPDF) {
-  if (_koreanFontLoaded) doc.setFont('NotoSansKR', 'normal');
+function sk(doc: import('jspdf').jsPDF, loaded: boolean) {
+  if (loaded) doc.setFont('NotoSansKR', 'normal');
 }
 
+// Load an image from a data URL safely (with error + timeout guard)
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10_000);
+    img.onload  = () => { clearTimeout(timeout); resolve(img); };
+    img.onerror = () => { clearTimeout(timeout); reject(new Error('Image load error')); };
+    img.src = src;
+  });
+}
+
+// Scale a canvas down so its longest side is ≤ maxSide.
+// Returns the original canvas unchanged if it already fits.
+function scaleCanvas(src: HTMLCanvasElement, maxSide: number): HTMLCanvasElement {
+  const ratio = Math.min(1, maxSide / Math.max(src.width, src.height));
+  if (ratio >= 1) return src;
+  const dst = document.createElement('canvas');
+  dst.width  = Math.round(src.width  * ratio);
+  dst.height = Math.round(src.height * ratio);
+  const ctx = dst.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, dst.width, dst.height);
+  return dst;
+}
 
 export async function exportToPdf(
   diagramCanvas: HTMLCanvasElement,
@@ -48,8 +70,7 @@ export async function exportToPdf(
   const { jsPDF } = await import('jspdf');
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  _koreanFontLoaded = await loadKoreanFont(pdf);
+  const KR = await loadKoreanFont(pdf);
 
   const frameSpec = FRAME_SPECS[canvasSize];
   const frameName = frameSpec
@@ -59,49 +80,41 @@ export async function exportToPdf(
   // ══════════════════════════════════════════════════════════════
   // Page 1 — Cover
   // ══════════════════════════════════════════════════════════════
-  setKoreanIfLoaded(pdf);
-
-  // Background tint
+  sk(pdf, KR);
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
-
-  // Decorative top bar
   pdf.setFillColor(139, 109, 56);
   pdf.rect(0, 0, A4_W, 8, 'F');
 
-  // Title
   pdf.setFontSize(22);
   pdf.setTextColor(44, 34, 24);
+  sk(pdf, KR);
   pdf.text('페인트 바이 넘버 도안', A4_W / 2, 30, { align: 'center' });
-
   pdf.setFontSize(11);
   pdf.setTextColor(100, 85, 65);
   pdf.text('Paint by Number Diagram', A4_W / 2, 38, { align: 'center' });
 
-  // Divider
   pdf.setDrawColor(180, 150, 100);
   pdf.setLineWidth(0.5);
   pdf.line(MARGIN + 20, 43, A4_W - MARGIN - 20, 43);
 
-  // Original image thumbnail
   let thumbY = 50;
   if (originalImageDataUrl) {
-    const thumbMaxW = 100, thumbMaxH = 80;
-    const img = new Image();
-    await new Promise<void>(r => { img.onload = () => r(); img.src = originalImageDataUrl; });
-    const ar = img.naturalWidth / img.naturalHeight;
-    let tw = thumbMaxW, th = tw / ar;
-    if (th > thumbMaxH) { th = thumbMaxH; tw = th * ar; }
-    const tx = (A4_W - tw) / 2;
-    pdf.addImage(originalImageDataUrl, 'JPEG', tx, thumbY, tw, th);
-    // Frame border around thumbnail
-    pdf.setDrawColor(139, 109, 56);
-    pdf.setLineWidth(1);
-    pdf.rect(tx - 1, thumbY - 1, tw + 2, th + 2, 'S');
-    thumbY += th + 8;
+    try {
+      const img = await loadImage(originalImageDataUrl);
+      const thumbMaxW = 100, thumbMaxH = 80;
+      const ar = img.naturalWidth / img.naturalHeight;
+      let tw = thumbMaxW, th = tw / ar;
+      if (th > thumbMaxH) { th = thumbMaxH; tw = th * ar; }
+      const tx = (A4_W - tw) / 2;
+      pdf.addImage(img, 'JPEG', tx, thumbY, tw, th);
+      pdf.setDrawColor(139, 109, 56);
+      pdf.setLineWidth(1);
+      pdf.rect(tx - 1, thumbY - 1, tw + 2, th + 2, 'S');
+      thumbY += th + 8;
+    } catch { /* skip thumbnail on error */ }
   }
 
-  // Metadata table
   const metaY = thumbY + 5;
   const rows: [string, string][] = [
     ['생성일 / Date', metadata?.date ?? new Date().toLocaleDateString('ko-KR')],
@@ -109,33 +122,28 @@ export async function exportToPdf(
     ['액자 규격 / Frame Size', frameName],
     ['세부 수준 / Detail Level', metadata?.detailLevel ?? '-'],
   ];
-
   const tableX = MARGIN + 15;
   const tableW = CONTENT_W - 30;
   const cellH = 9;
-
   pdf.setFontSize(9);
   rows.forEach(([label, value], i) => {
     const y = metaY + i * cellH;
-    const isEven = i % 2 === 0;
-    if (isEven) {
+    if (i % 2 === 0) {
       pdf.setFillColor(245, 240, 232);
       pdf.rect(tableX, y - 6.5, tableW, cellH, 'F');
     }
+    sk(pdf, KR);
     pdf.setTextColor(100, 85, 65);
     pdf.text(label, tableX + 3, y);
     pdf.setTextColor(44, 34, 24);
     pdf.text(value, tableX + tableW - 3, y, { align: 'right' });
   });
-
   pdf.setDrawColor(200, 180, 150);
   pdf.setLineWidth(0.3);
   pdf.rect(tableX, metaY - 6.5, tableW, rows.length * cellH, 'S');
 
-  // Footer
   pdf.setFontSize(8);
   pdf.setTextColor(150, 130, 100);
-  setKoreanIfLoaded(pdf);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
@@ -143,8 +151,7 @@ export async function exportToPdf(
   // Page 2 — Color Guide
   // ══════════════════════════════════════════════════════════════
   pdf.addPage();
-  setKoreanIfLoaded(pdf);
-
+  sk(pdf, KR);
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
   pdf.setFillColor(139, 109, 56);
@@ -152,21 +159,18 @@ export async function exportToPdf(
 
   pdf.setFontSize(16);
   pdf.setTextColor(44, 34, 24);
-  setKoreanIfLoaded(pdf);
+  sk(pdf, KR);
   pdf.text('색상 가이드 / Color Guide', MARGIN, 22);
-
   pdf.setDrawColor(180, 150, 100);
   pdf.setLineWidth(0.4);
   pdf.line(MARGIN, 26, A4_W - MARGIN, 26);
 
-  // Instructions
   pdf.setFontSize(8.5);
   pdf.setTextColor(70, 60, 50);
-  setKoreanIfLoaded(pdf);
+  sk(pdf, KR);
   pdf.text('도안의 각 구역에 표시된 기호에 해당하는 색상으로 채색하세요.', MARGIN, 33);
   pdf.text('Fill each numbered region with the corresponding paint color.', MARGIN, 38);
 
-  // Color table header
   const entries = Array.from(colorMap.values())
     .filter(e => e.regionCount > 0)
     .sort((a, b) => a.symbol.localeCompare(b.symbol, undefined, { numeric: true }));
@@ -175,34 +179,27 @@ export async function exportToPdf(
   const ROW_H = 14;
   const COL_W = CONTENT_W / 2;
   let curY = 45;
-  let col = 0;
 
-  // Column headers
-  const headerY = curY;
-  ['기호', '색상', '이름', 'HEX', '구역'].forEach((h, hi) => {
-    const x = MARGIN + (col === 0 ? 0 : COL_W) + [0, 16, 30, 68, 90][hi];
+  // Column headers (left column only — right col uses same offsets)
+  (['기호', '색상', '이름', 'HEX', '구역'] as const).forEach((h, hi) => {
+    const x = MARGIN + [0, 16, 30, 68, 90][hi];
     pdf.setFontSize(7);
     pdf.setTextColor(100, 85, 65);
-    setKoreanIfLoaded(pdf);
-    pdf.text(h, x, headerY);
+    sk(pdf, KR);
+    pdf.text(h, x, curY);
   });
   curY += 5;
-
   pdf.setDrawColor(200, 175, 140);
   pdf.setLineWidth(0.3);
   pdf.line(MARGIN, curY, A4_W - MARGIN, curY);
   curY += 3;
 
-  col = 0;
-  let rowInCol = 0;
-
+  let col = 0, rowInCol = 0;
   entries.forEach((entry) => {
     const maxRowsPerCol = Math.floor((A4_H - MARGIN - curY - 25) / ROW_H);
-    // If both cols full, would need new page — simplified: just let it overflow for now
     const baseX = MARGIN + col * COL_W;
     const y = curY + rowInCol * ROW_H;
 
-    // Swatch
     const [r, g, b] = entry.paintColor.rgb;
     pdf.setFillColor(r, g, b);
     pdf.rect(baseX, y - SWATCH_SIZE + 2, SWATCH_SIZE, SWATCH_SIZE, 'F');
@@ -210,122 +207,96 @@ export async function exportToPdf(
     pdf.setLineWidth(0.2);
     pdf.rect(baseX, y - SWATCH_SIZE + 2, SWATCH_SIZE, SWATCH_SIZE, 'S');
 
-    // Symbol
     pdf.setFontSize(8);
     pdf.setTextColor(20, 20, 20);
     pdf.text(entry.symbol, baseX + 14, y - 2);
-
-    // Paint name
     pdf.setFontSize(7);
     pdf.setTextColor(40, 40, 40);
-    setKoreanIfLoaded(pdf);
+    sk(pdf, KR);
     pdf.text(entry.paintColor.nameKo, baseX + 28, y - 2);
-
-    // Hex
     pdf.setTextColor(80, 80, 80);
     pdf.text(entry.paintColor.hex, baseX + 66, y - 2);
-
-    // Region count
     pdf.setTextColor(100, 85, 65);
-    pdf.text(`×${entry.regionCount}`, baseX + 88, y - 2);
+    pdf.text(`x${entry.regionCount}`, baseX + 88, y - 2);
 
     rowInCol++;
-    if (rowInCol >= maxRowsPerCol && col === 0) {
-      col = 1;
-      rowInCol = 0;
-    }
+    if (rowInCol >= maxRowsPerCol && col === 0) { col = 1; rowInCol = 0; }
   });
 
-  // Footer
   pdf.setFontSize(8);
   pdf.setTextColor(150, 130, 100);
-  setKoreanIfLoaded(pdf);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
   // ══════════════════════════════════════════════════════════════
   // Page 3+ — Diagram Tiles
+  // Scale the canvas down to max 2480px (A4@300dpi) before tiling
+  // to keep toDataURL fast and memory usage under control.
   // ══════════════════════════════════════════════════════════════
-  // Content area per tile (with margins)
+  const scaledDiagram = scaleCanvas(diagramCanvas, 2480);
+
   const TILE_W_MM = CONTENT_W;
-  const TILE_H_MM = CONTENT_H - 12; // leave room for header/footer
-
-  // Diagram physical size in mm
-  const diagW_mm = frameSpec ? frameSpec.w : A4_W - 2 * MARGIN;
-  const diagH_mm = frameSpec ? frameSpec.h : A4_H - 2 * MARGIN;
-
-  // Overlap: 8mm on each shared edge
+  const TILE_H_MM = CONTENT_H - 12;
   const OVERLAP_MM = 8;
   const strideW = TILE_W_MM - OVERLAP_MM;
   const strideH = TILE_H_MM - OVERLAP_MM;
+
+  const diagW_mm = frameSpec ? frameSpec.w : A4_W - 2 * MARGIN;
+  const diagH_mm = frameSpec ? frameSpec.h : A4_H - 2 * MARGIN;
 
   const tilesX = Math.ceil(diagW_mm / strideW);
   const tilesY = Math.ceil(diagH_mm / strideH);
   const totalTiles = tilesX * tilesY;
 
-  // Scale: diagram canvas px → mm
-  const pxPerMmX = diagramCanvas.width  / diagW_mm;
-  const pxPerMmY = diagramCanvas.height / diagH_mm;
+  const pxPerMmX = scaledDiagram.width  / diagW_mm;
+  const pxPerMmY = scaledDiagram.height / diagH_mm;
 
   let tileNum = 0;
   for (let ty = 0; ty < tilesY; ty++) {
     for (let tx = 0; tx < tilesX; tx++) {
       tileNum++;
       pdf.addPage();
-      setKoreanIfLoaded(pdf);
+      sk(pdf, KR);
 
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, A4_W, A4_H, 'F');
 
-      // Page indicator
       pdf.setFontSize(8);
       pdf.setTextColor(120, 100, 80);
-      setKoreanIfLoaded(pdf);
       pdf.text(`[ ${tileNum} / ${totalTiles} ]`, A4_W - MARGIN, MARGIN - 4, { align: 'right' });
 
-      // Tile source region in mm
       const srcX_mm = tx * strideW;
       const srcY_mm = ty * strideH;
       const srcW_mm = Math.min(TILE_W_MM, diagW_mm - srcX_mm);
       const srcH_mm = Math.min(TILE_H_MM, diagH_mm - srcY_mm);
 
-      // Convert to canvas pixels
       const srcX_px = Math.round(srcX_mm * pxPerMmX);
       const srcY_px = Math.round(srcY_mm * pxPerMmY);
       const srcW_px = Math.round(srcW_mm * pxPerMmX);
       const srcH_px = Math.round(srcH_mm * pxPerMmY);
 
-      // Extract tile from canvas
-      const tileCanvas = document.createElement('canvas');
-      tileCanvas.width  = srcW_px;
-      tileCanvas.height = srcH_px;
-      const tileCtx = tileCanvas.getContext('2d')!;
-      tileCtx.drawImage(diagramCanvas, srcX_px, srcY_px, srcW_px, srcH_px, 0, 0, srcW_px, srcH_px);
+      const tile = document.createElement('canvas');
+      tile.width  = srcW_px;
+      tile.height = srcH_px;
+      const tileCtx = tile.getContext('2d')!;
+      tileCtx.drawImage(scaledDiagram, srcX_px, srcY_px, srcW_px, srcH_px, 0, 0, srcW_px, srcH_px);
 
-      const tileData = tileCanvas.toDataURL('image/jpeg', 0.92);
-      pdf.addImage(tileData, 'JPEG', MARGIN, MARGIN, srcW_mm, srcH_mm);
+      pdf.addImage(tile.toDataURL('image/jpeg', 0.90), 'JPEG', MARGIN, MARGIN, srcW_mm, srcH_mm);
 
-      // Crosshair marks at corners
+      // Crosshair corner marks
       pdf.setDrawColor(180, 160, 130);
       pdf.setLineWidth(0.3);
-      const cx = [MARGIN, MARGIN + srcW_mm];
-      const cy = [MARGIN, MARGIN + srcH_mm];
-      const CROSS = 4;
-      cx.forEach(x => cy.forEach(y => {
-        pdf.line(x - CROSS, y, x + CROSS, y);
-        pdf.line(x, y - CROSS, x, y + CROSS);
-      }));
+      [[MARGIN, MARGIN], [MARGIN + srcW_mm, MARGIN],
+       [MARGIN, MARGIN + srcH_mm], [MARGIN + srcW_mm, MARGIN + srcH_mm]].forEach(([x, y]) => {
+        pdf.line(x - 4, y, x + 4, y);
+        pdf.line(x, y - 4, x, y + 4);
+      });
 
-      // Scale bar
       pdf.setFontSize(7);
       pdf.setTextColor(120, 100, 80);
-      setKoreanIfLoaded(pdf);
-      pdf.text(`1 구역 ≈ 10mm`, MARGIN, MARGIN + srcH_mm + 6);
-
-      // Footer
-      pdf.setFontSize(7);
+      sk(pdf, KR);
+      pdf.text('1 zone = 10mm', MARGIN, MARGIN + srcH_mm + 6);
       pdf.setTextColor(150, 130, 100);
-      setKoreanIfLoaded(pdf);
       pdf.text('Paint by Number Generator — paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
     }
   }
@@ -335,8 +306,7 @@ export async function exportToPdf(
   // ══════════════════════════════════════════════════════════════
   if (originalImageDataUrl) {
     pdf.addPage();
-    setKoreanIfLoaded(pdf);
-
+    sk(pdf, KR);
     pdf.setFillColor(253, 250, 245);
     pdf.rect(0, 0, A4_W, A4_H, 'F');
     pdf.setFillColor(139, 109, 56);
@@ -344,33 +314,29 @@ export async function exportToPdf(
 
     pdf.setFontSize(14);
     pdf.setTextColor(44, 34, 24);
-    setKoreanIfLoaded(pdf);
+    sk(pdf, KR);
     pdf.text('완성 참고 이미지 / Original Reference', A4_W / 2, 20, { align: 'center' });
-
     pdf.setDrawColor(180, 150, 100);
     pdf.setLineWidth(0.4);
     pdf.line(MARGIN + 10, 24, A4_W - MARGIN - 10, 24);
 
-    const imgMaxW = CONTENT_W;
-    const imgMaxH = CONTENT_H - 20;
-    const img = new Image();
-    await new Promise<void>(r => { img.onload = () => r(); img.src = originalImageDataUrl; });
-    const ar = img.naturalWidth / img.naturalHeight;
-    let iw = imgMaxW, ih = iw / ar;
-    if (ih > imgMaxH) { ih = imgMaxH; iw = ih * ar; }
-    const ix = (A4_W - iw) / 2;
-    pdf.addImage(originalImageDataUrl, 'JPEG', ix, 30, iw, ih);
+    try {
+      const img = await loadImage(originalImageDataUrl);
+      const imgMaxW = CONTENT_W, imgMaxH = CONTENT_H - 20;
+      const ar = img.naturalWidth / img.naturalHeight;
+      let iw = imgMaxW, ih = iw / ar;
+      if (ih > imgMaxH) { ih = imgMaxH; iw = ih * ar; }
+      pdf.addImage(img, 'JPEG', (A4_W - iw) / 2, 30, iw, ih);
 
-    // Caption
-    pdf.setFontSize(8.5);
-    pdf.setTextColor(100, 85, 65);
-    setKoreanIfLoaded(pdf);
-    pdf.text('채색 시 이 이미지를 참고하세요 / Use this image as reference while painting', A4_W / 2, 30 + ih + 8, { align: 'center' });
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(100, 85, 65);
+      sk(pdf, KR);
+      pdf.text('채색 시 이 이미지를 참고하세요 / Use this image as reference while painting',
+        A4_W / 2, 30 + ih + 8, { align: 'center' });
+    } catch { /* skip reference image on error */ }
 
-    // Footer
     pdf.setFontSize(8);
     pdf.setTextColor(150, 130, 100);
-    setKoreanIfLoaded(pdf);
     pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
     pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
   }

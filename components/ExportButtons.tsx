@@ -12,6 +12,7 @@ interface Props {
 
 export default function ExportButtons({ result, canvasSize, settings, originalImageDataUrl }: Props) {
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError,   setPdfError]   = useState('');
 
   const handlePng = () => {
     if (!result) return;
@@ -21,6 +22,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
   const handlePdf = async () => {
     if (!result) return;
     setPdfLoading(true);
+    setPdfError('');
     try {
       await exportToPdf(
         result.canvas,
@@ -35,6 +37,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
       );
     } catch (err) {
       console.error('PDF export failed', err);
+      setPdfError(err instanceof Error ? err.message : 'PDF 생성 실패');
     } finally {
       setPdfLoading(false);
     }
@@ -43,6 +46,12 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
   const disabled = !result;
 
   return (
+    <div className="flex flex-col gap-3">
+    {pdfError && (
+      <div style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fdf0ec', border: '1px solid #e08070', borderRadius: 3, padding: '6px 10px' }}>
+        PDF 오류: {pdfError}
+      </div>
+    )}
     <div className="flex flex-col sm:flex-row gap-3">
       {/* PNG — gold outline */}
       <button
@@ -83,6 +92,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
           </>
         )}
       </button>
+    </div>
     </div>
   );
 }
