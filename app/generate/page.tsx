@@ -64,7 +64,7 @@ export default function GeneratePage() {
   const [settings, setSettings] = useState<DiagramSettings>({
     colorCount:  24,
     detailLevel: 'medium',
-    canvasSize:  'f8',
+    canvasSize:  'a4',
     fitMode:     'fit',
     cropRegion:  null,
     style:       'clean',
