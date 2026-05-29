@@ -9,7 +9,8 @@ interface Props {
   isGenerating:      boolean;
   hasImage:          boolean;
   imageDataUrl?:     string;
-  imagePixels?:      number; // width * height of the uploaded image
+  imagePixels?:      number;
+  suggestedColors?:  number | null;
 }
 
 function RadioGroup<T extends string>({
@@ -202,7 +203,7 @@ function QualityBadge({
 }
 
 export default function SettingsPanel({
-  settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl, imagePixels,
+  settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl, imagePixels, suggestedColors,
 }: Props) {
   const set = <K extends keyof DiagramSettings>(k: K, v: DiagramSettings[K]) => {
     if (k === 'canvasSize') {
@@ -241,6 +242,36 @@ export default function SettingsPanel({
         <div className="flex justify-between mt-0.5" style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>
           <span>8</span><span>40</span>
         </div>
+
+        {/* Color count suggestion badge */}
+        {suggestedColors !== null && suggestedColors !== undefined && suggestedColors !== settings.colorCount && (
+          <div style={{
+            marginTop: 6,
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 8px',
+            background: '#F5F0E8',
+            border: '1px solid #C8B88A',
+            borderRadius: 4,
+            fontSize: '0.68rem',
+            color: 'var(--color-muted)',
+          }}>
+            <span style={{ flex: 1 }}>이 이미지에는 색상 수 <strong>{suggestedColors}</strong> 권장</span>
+            <button
+              onClick={() => onChange({ ...settings, colorCount: suggestedColors! })}
+              style={{
+                padding: '2px 8px',
+                background: 'var(--color-frame)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 3,
+                fontSize: '0.65rem',
+                cursor: 'pointer',
+              }}
+            >
+              적용
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Detail level */}

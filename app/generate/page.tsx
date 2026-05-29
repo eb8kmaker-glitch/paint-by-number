@@ -6,6 +6,7 @@ import DiagramCanvas from '@/components/DiagramCanvas';
 import ColorLegend from '@/components/ColorLegend';
 import ExportButtons from '@/components/ExportButtons';
 import { generateDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
+import { suggestColorCount } from '@/lib/colorUtils';
 
 const STEPS = [
   { ko: '업로드',   en: 'Upload'   },
@@ -56,9 +57,10 @@ export default function GeneratePage() {
   const router = useRouter();
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const [imageDataUrl,    setImageDataUrl]    = useState<string | null>(null);
-  const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
-  const [imagePixels,     setImagePixels]     = useState<number>(0);
+  const [imageDataUrl,       setImageDataUrl]       = useState<string | null>(null);
+  const [imageAspectRatio,   setImageAspectRatio]   = useState<number>(1);
+  const [imagePixels,        setImagePixels]        = useState<number>(0);
+  const [suggestedColors,    setSuggestedColors]    = useState<number | null>(null);
   const [settings, setSettings] = useState<DiagramSettings>({
     colorCount:  24,
     detailLevel: 'medium',
@@ -78,11 +80,20 @@ export default function GeneratePage() {
     const stored = sessionStorage.getItem('uploadedImage');
     if (!stored) { router.replace('/'); return; }
     setImageDataUrl(stored);
-    // Compute aspect ratio and pixel count from the stored image
+    // Compute aspect ratio, pixel count, and colour suggestion from the stored image
     const img = new Image();
     img.onload = () => {
       setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       setImagePixels(img.naturalWidth * img.naturalHeight);
+      // Sample pixels for colour-count suggestion (use a small canvas for speed)
+      const sW = Math.min(200, img.naturalWidth);
+      const sH = Math.min(200, img.naturalHeight);
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = sW; tmpCanvas.height = sH;
+      const tmpCtx = tmpCanvas.getContext('2d')!;
+      tmpCtx.drawImage(img, 0, 0, sW, sH);
+      const { data } = tmpCtx.getImageData(0, 0, sW, sH);
+      setSuggestedColors(suggestColorCount(data, sW, sH));
     };
     img.src = stored;
   }, [router]);
@@ -203,6 +214,7 @@ export default function GeneratePage() {
               hasImage={!!imageDataUrl}
               imageDataUrl={imageDataUrl ?? undefined}
               imagePixels={imagePixels}
+              suggestedColors={suggestedColors}
             />
 
             {imageDataUrl && (

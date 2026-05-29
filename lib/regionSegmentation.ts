@@ -9,9 +9,9 @@ export interface Region {
 }
 
 const MIN_AREA: Record<'low' | 'medium' | 'high', number> = {
-  low:    400,
-  medium: 150,
-  high:   60,
+  low:    1200,
+  medium:  500,
+  high:    200,
 };
 
 /**
@@ -176,3 +176,57 @@ export function segmentRegions(
 
   return regions;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Median filter on quantized cluster map.
+// Replaces each pixel's cluster index with the modal (most-common) value
+// in its 3×3 neighbourhood.  Smooths jagged region boundaries without
+// blurring across large colour differences.
+//
+// Mutates clusterMap in place.
+// ─────────────────────────────────────────────────────────────────────────────
+export function medianFilterQuantized(
+  clusterMap: Int32Array,
+  W: number,
+  H: number,
+  passes: number,
+  K: number,           // total number of clusters (max cluster index + 1)
+): void {
+  const N    = W * H;
+  const temp = new Int32Array(N);
+  const freq = new Int32Array(K + 1);
+
+  for (let p = 0; p < passes; p++) {
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        // Collect 3×3 neighbourhood
+        const used: number[] = [];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const c = clusterMap[(y + dy) * W + (x + dx)];
+            if (freq[c] === 0) used.push(c);
+            freq[c]++;
+          }
+        }
+        // Find modal cluster
+        let best = clusterMap[y * W + x], bestF = 0;
+        for (const c of used) {
+          if (freq[c] > bestF) { bestF = freq[c]; best = c; }
+          freq[c] = 0; // reset for next pixel
+        }
+        temp[y * W + x] = best;
+      }
+    }
+    // Copy border pixels unchanged
+    for (let x = 0; x < W; x++) {
+      temp[x]             = clusterMap[x];
+      temp[(H - 1) * W + x] = clusterMap[(H - 1) * W + x];
+    }
+    for (let y = 0; y < H; y++) {
+      temp[y * W]         = clusterMap[y * W];
+      temp[y * W + W - 1] = clusterMap[y * W + W - 1];
+    }
+    clusterMap.set(temp);
+  }
+}
+

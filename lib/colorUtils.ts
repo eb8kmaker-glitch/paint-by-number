@@ -231,3 +231,101 @@ export function generateSymbols(count: number): string[] {
   }
   return out.slice(0, count);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gaussian blur (3 passes of separable box blur ≈ Gaussian)
+// Operates directly on raw RGBA pixel data.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Pixels = Uint8ClampedArray<ArrayBufferLike>;
+
+function _boxBlurH(src: Pixels, W: number, H: number, r: number): Uint8ClampedArray<ArrayBuffer> {
+  const dst = new Uint8ClampedArray(src.length);
+  const len = 2 * r + 1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let rs = 0, gs = 0, bs = 0;
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = Math.max(0, Math.min(W - 1, x + dx));
+        const i  = (y * W + nx) * 4;
+        rs += src[i]; gs += src[i + 1]; bs += src[i + 2];
+      }
+      const o = (y * W + x) * 4;
+      dst[o] = rs / len; dst[o + 1] = gs / len; dst[o + 2] = bs / len; dst[o + 3] = 255;
+    }
+  }
+  return dst;
+}
+
+function _boxBlurV(src: Pixels, W: number, H: number, r: number): Uint8ClampedArray<ArrayBuffer> {
+  const dst = new Uint8ClampedArray(src.length);
+  const len = 2 * r + 1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let rs = 0, gs = 0, bs = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        const ny = Math.max(0, Math.min(H - 1, y + dy));
+        const i  = (ny * W + x) * 4;
+        rs += src[i]; gs += src[i + 1]; bs += src[i + 2];
+      }
+      const o = (y * W + x) * 4;
+      dst[o] = rs / len; dst[o + 1] = gs / len; dst[o + 2] = bs / len; dst[o + 3] = 255;
+    }
+  }
+  return dst;
+}
+
+/**
+ * Apply Gaussian blur approximation (3 passes of box blur).
+ * Returns a new Uint8ClampedArray with the blurred RGBA data.
+ */
+export function gaussianBlur(
+  src: Pixels,
+  W: number,
+  H: number,
+  radius: number,
+): Uint8ClampedArray<ArrayBuffer> {
+  if (radius <= 0) return new Uint8ClampedArray(src);
+  let buf: Pixels = new Uint8ClampedArray(src);
+  for (let p = 0; p < 3; p++) {
+    buf = _boxBlurH(buf, W, H, radius);
+    buf = _boxBlurV(buf, W, H, radius);
+  }
+  return buf as Uint8ClampedArray<ArrayBuffer>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Color-count suggestion based on image colour spread in LAB space
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Analyse the image and return a suggested number of paint colors.
+ * Uses variance of pixel LAB values as a proxy for image complexity.
+ */
+export function suggestColorCount(pixels: Pixels, W: number, H: number): number {
+  const N = W * H;
+  const step = Math.max(1, Math.floor(N / 500)); // sample ≤500 pixels
+  let sumL = 0, sumA = 0, sumB = 0;
+  let count = 0;
+  const labs: [number, number, number][] = [];
+
+  for (let i = 0; i < N; i += step) {
+    const lab = rgbToLab(pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]);
+    labs.push(lab);
+    sumL += lab[0]; sumA += lab[1]; sumB += lab[2];
+    count++;
+  }
+
+  const mL = sumL / count, mA = sumA / count, mB = sumB / count;
+  let varTotal = 0;
+  for (const [L, a, b] of labs) {
+    varTotal += (L - mL) ** 2 + (a - mA) ** 2 + (b - mB) ** 2;
+  }
+  const spread = Math.sqrt(varTotal / count);
+
+  if (spread > 40) return 32;
+  if (spread > 25) return 24;
+  if (spread > 12) return 18;
+  return 14;
+}
+
