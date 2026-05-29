@@ -46,6 +46,12 @@ export async function exportToPdf(
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+  // Always set font explicitly — jsPDF can lose font state across addPage() calls
+  const setFont = (size: number) => {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(size);
+  };
+
   const frameSpec = FRAME_SPECS[canvasSize];
   const frameName = frameSpec
     ? `${frameSpec.nameEn} / ${frameSpec.w}x${frameSpec.h}mm`
@@ -59,10 +65,10 @@ export async function exportToPdf(
   pdf.setFillColor(139, 109, 56);
   pdf.rect(0, 0, A4_W, 8, 'F');
 
-  pdf.setFontSize(22);
+  setFont(22);
   pdf.setTextColor(44, 34, 24);
   pdf.text('Paint by Number', A4_W / 2, 30, { align: 'center' });
-  pdf.setFontSize(11);
+  setFont(11);
   pdf.setTextColor(100, 85, 65);
   pdf.text('Paint by Number Diagram', A4_W / 2, 38, { align: 'center' });
 
@@ -98,7 +104,7 @@ export async function exportToPdf(
   const tableX = MARGIN + 15;
   const tableW = CONTENT_W - 30;
   const cellH = 9;
-  pdf.setFontSize(9);
+  setFont(9);
   rows.forEach(([label, value], i) => {
     const y = metaY + i * cellH;
     if (i % 2 === 0) {
@@ -114,7 +120,7 @@ export async function exportToPdf(
   pdf.setLineWidth(0.3);
   pdf.rect(tableX, metaY - 6.5, tableW, rows.length * cellH, 'S');
 
-  pdf.setFontSize(8);
+  setFont(8);
   pdf.setTextColor(150, 130, 100);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
@@ -128,14 +134,14 @@ export async function exportToPdf(
   pdf.setFillColor(139, 109, 56);
   pdf.rect(0, 0, A4_W, 8, 'F');
 
-  pdf.setFontSize(16);
+  setFont(16);
   pdf.setTextColor(44, 34, 24);
   pdf.text('Color Guide', MARGIN, 22);
   pdf.setDrawColor(180, 150, 100);
   pdf.setLineWidth(0.4);
   pdf.line(MARGIN, 26, A4_W - MARGIN, 26);
 
-  pdf.setFontSize(8.5);
+  setFont(8.5);
   pdf.setTextColor(70, 60, 50);
   pdf.text('Fill each region with the paint color matching its symbol.', MARGIN, 33);
 
@@ -153,7 +159,7 @@ export async function exportToPdf(
   const hOffsets = [0, 16, 30, 68, 90];
   headers.forEach((h, hi) => {
     const x = MARGIN + hOffsets[hi];
-    pdf.setFontSize(7);
+    setFont(7);
     pdf.setTextColor(100, 85, 65);
     pdf.text(h, x, curY);
   });
@@ -176,10 +182,10 @@ export async function exportToPdf(
     pdf.setLineWidth(0.2);
     pdf.rect(baseX, y - SWATCH_SIZE + 2, SWATCH_SIZE, SWATCH_SIZE, 'S');
 
-    pdf.setFontSize(8);
+    setFont(8);
     pdf.setTextColor(20, 20, 20);
     pdf.text(entry.symbol, baseX + 14, y - 2);
-    pdf.setFontSize(7);
+    setFont(7);
     pdf.setTextColor(40, 40, 40);
     pdf.text(entry.paintColor.name, baseX + 28, y - 2);
     pdf.setTextColor(80, 80, 80);
@@ -191,7 +197,7 @@ export async function exportToPdf(
     if (rowInCol >= maxRowsPerCol && col === 0) { col = 1; rowInCol = 0; }
   });
 
-  pdf.setFontSize(8);
+  setFont(8);
   pdf.setTextColor(150, 130, 100);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
@@ -228,7 +234,7 @@ export async function exportToPdf(
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, A4_W, A4_H, 'F');
 
-      pdf.setFontSize(8);
+      setFont(8);
       pdf.setTextColor(120, 100, 80);
       pdf.text(`[ ${tileNum} / ${totalTiles} ]`, A4_W - MARGIN, MARGIN - 4, { align: 'right' });
 
@@ -259,7 +265,7 @@ export async function exportToPdf(
         pdf.line(x, y - 4, x, y + 4);
       });
 
-      pdf.setFontSize(7);
+      setFont(7);
       pdf.setTextColor(120, 100, 80);
       pdf.text('1 zone = 10mm', MARGIN, MARGIN + srcH_mm + 6);
       pdf.setTextColor(150, 130, 100);
@@ -277,7 +283,7 @@ export async function exportToPdf(
     pdf.setFillColor(139, 109, 56);
     pdf.rect(0, 0, A4_W, 8, 'F');
 
-    pdf.setFontSize(14);
+    setFont(14);
     pdf.setTextColor(44, 34, 24);
     pdf.text('Reference Image', A4_W / 2, 20, { align: 'center' });
     pdf.setDrawColor(180, 150, 100);
@@ -292,13 +298,13 @@ export async function exportToPdf(
       if (ih > imgMaxH) { ih = imgMaxH; iw = ih * ar; }
       pdf.addImage(img, 'JPEG', (A4_W - iw) / 2, 30, iw, ih);
 
-      pdf.setFontSize(8.5);
+      setFont(8.5);
       pdf.setTextColor(100, 85, 65);
       pdf.text('Use this image as reference while painting.',
         A4_W / 2, 30 + ih + 8, { align: 'center' });
     } catch { /* skip reference image on error */ }
 
-    pdf.setFontSize(8);
+    setFont(8);
     pdf.setTextColor(150, 130, 100);
     pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
     pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
