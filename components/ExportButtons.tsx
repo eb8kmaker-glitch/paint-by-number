@@ -1,14 +1,16 @@
 'use client';
 import { useState } from 'react';
-import { DiagramResult, CanvasSize } from '@/lib/diagramRenderer';
+import { DiagramResult, CanvasSize, DiagramSettings } from '@/lib/diagramRenderer';
 import { exportToPng, exportToPdf } from '@/lib/pdfExport';
 
 interface Props {
-  result:     DiagramResult | null;
-  canvasSize: CanvasSize;
+  result:          DiagramResult | null;
+  canvasSize:      CanvasSize;
+  settings:        DiagramSettings;
+  originalImageDataUrl?: string;
 }
 
-export default function ExportButtons({ result, canvasSize }: Props) {
+export default function ExportButtons({ result, canvasSize, settings, originalImageDataUrl }: Props) {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const handlePng = () => {
@@ -20,7 +22,17 @@ export default function ExportButtons({ result, canvasSize }: Props) {
     if (!result) return;
     setPdfLoading(true);
     try {
-      await exportToPdf(result.canvas, result.colorMap, canvasSize);
+      await exportToPdf(
+        result.canvas,
+        result.colorMap,
+        canvasSize,
+        originalImageDataUrl,
+        {
+          date: new Date().toLocaleDateString('ko-KR'),
+          colorCount: settings.colorCount,
+          detailLevel: settings.detailLevel === 'low' ? '낮음' : settings.detailLevel === 'medium' ? '중간' : '높음',
+        },
+      );
     } catch (err) {
       console.error('PDF export failed', err);
     } finally {

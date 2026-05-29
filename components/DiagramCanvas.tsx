@@ -2,13 +2,14 @@
 import { useEffect, useRef } from 'react';
 
 interface Props {
-  canvas:       HTMLCanvasElement | null;
-  isGenerating: boolean;
-  progress:     number;
-  placeholder?: string;
+  canvas:             HTMLCanvasElement | null;
+  isGenerating:       boolean;
+  progress:           number;
+  placeholder?:       string;
+  imageAspectRatio?:  number; // width/height of the original uploaded image
 }
 
-export default function DiagramCanvas({ canvas, isGenerating, progress, placeholder }: Props) {
+export default function DiagramCanvas({ canvas, isGenerating, progress, placeholder, imageAspectRatio = 1 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,14 +29,32 @@ export default function DiagramCanvas({ canvas, isGenerating, progress, placehol
     <div className="relative w-full flex flex-col items-center justify-center"
       style={{ minHeight: '320px' }}>
 
-      {/* Placeholder — faded original before generation */}
+      {/* Placeholder — frame preview with original aspect ratio */}
       {!canvas && !isGenerating && placeholder && (
-        <img
-          src={placeholder}
-          alt="원본 이미지"
-          className="max-w-full object-contain"
-          style={{ maxHeight: '480px', opacity: 0.5 }}
-        />
+        <div className="flex flex-col items-center w-full py-2">
+          <div style={{
+            position: 'relative',
+            display: 'inline-block',
+            border: '12px solid var(--color-frame)',
+            outline: '2px solid var(--color-frame-dark)',
+            boxShadow: '4px 8px 24px rgba(44, 34, 24, 0.25)',
+          }}>
+            <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 4px #D4B87A', zIndex: 2, pointerEvents: 'none' }} />
+            <img
+              src={placeholder}
+              alt="원본 이미지"
+              style={{
+                display: 'block',
+                aspectRatio: String(imageAspectRatio),
+                maxWidth: imageAspectRatio >= 1 ? '540px' : '360px',
+                maxHeight: imageAspectRatio < 1 ? '540px' : '400px',
+                width: '100%',
+                objectFit: 'cover',
+                opacity: 0.55,
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Canvas output — gallery picture frame */}

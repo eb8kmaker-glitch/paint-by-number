@@ -3,9 +3,30 @@ import { rgbToLab, kMeans, mapToNearestPaint, generateSymbols } from '@/lib/colo
 import { PaintColor } from '@/constants/paintColors';
 
 export type DetailLevel = 'low' | 'medium' | 'high';
-export type CanvasSize  = 'a4' | 'a3' | 'square';
+export type CanvasSize  = 'f4' | 'f6' | 'f8' | 'f10' | 'f12' | 'f15' | 'f20' | 'f30' | 'f50' | 'square';
 export type Style       = 'clean' | 'detailed';
 export type FitMode     = 'fit' | 'fill';
+
+export interface FrameSpec {
+  nameKo: string;  // e.g. "4호"
+  nameEn: string;  // e.g. "F4"
+  w: number;       // mm width
+  h: number;       // mm height
+  group: 'small' | 'large';
+}
+
+export const FRAME_SPECS: Record<CanvasSize, FrameSpec | null> = {
+  f4:     { nameKo: '4호',   nameEn: 'F4',  w: 333,  h: 242,  group: 'small' },
+  f6:     { nameKo: '6호',   nameEn: 'F6',  w: 410,  h: 318,  group: 'small' },
+  f8:     { nameKo: '8호',   nameEn: 'F8',  w: 455,  h: 380,  group: 'small' },
+  f10:    { nameKo: '10호',  nameEn: 'F10', w: 530,  h: 455,  group: 'small' },
+  f12:    { nameKo: '12호',  nameEn: 'F12', w: 606,  h: 500,  group: 'large' },
+  f15:    { nameKo: '15호',  nameEn: 'F15', w: 652,  h: 530,  group: 'large' },
+  f20:    { nameKo: '20호',  nameEn: 'F20', w: 727,  h: 606,  group: 'large' },
+  f30:    { nameKo: '30호',  nameEn: 'F30', w: 910,  h: 727,  group: 'large' },
+  f50:    { nameKo: '50호',  nameEn: 'F50', w: 1167, h: 910,  group: 'large' },
+  square: null,
+};
 
 export interface CropRegion {
   x: number; // source x in pixels
@@ -36,11 +57,18 @@ export interface DiagramResult {
   colorMap: Map<number, ColorInfo>; // clusterIndex → info
 }
 
-// Output dimensions at 300 DPI
+// Output dimensions at 300 DPI (mm / 25.4 * 300, rounded)
 export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
-  a4:     { w: 2480, h: 3508 },
-  a3:     { w: 3508, h: 4961 },
-  square: { w: 2480, h: 2480 },
+  f4:     { w: 3937,  h: 2858  },
+  f6:     { w: 4843,  h: 3756  },
+  f8:     { w: 5374,  h: 4488  },
+  f10:    { w: 6260,  h: 5374  },
+  f12:    { w: 7158,  h: 5906  },
+  f15:    { w: 7701,  h: 6260  },
+  f20:    { w: 8591,  h: 7158  },
+  f30:    { w: 10748, h: 8591  },
+  f50:    { w: 13783, h: 10748 },
+  square: { w: 2480,  h: 2480  },
 };
 
 // Maximum processing width (px) — K-means runs at this resolution

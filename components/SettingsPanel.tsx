@@ -1,14 +1,15 @@
 'use client';
-import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode } from '@/lib/diagramRenderer';
+import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode, FRAME_SPECS } from '@/lib/diagramRenderer';
 import CropPreview from '@/components/CropPreview';
 
 interface Props {
-  settings:     DiagramSettings;
-  onChange:     (s: DiagramSettings) => void;
-  onGenerate:   () => void;
-  isGenerating: boolean;
-  hasImage:     boolean;
-  imageDataUrl?: string;
+  settings:          DiagramSettings;
+  onChange:          (s: DiagramSettings) => void;
+  onGenerate:        () => void;
+  isGenerating:      boolean;
+  hasImage:          boolean;
+  imageDataUrl?:     string;
+  imagePixels?:      number; // width * height of the uploaded image
 }
 
 function RadioGroup<T extends string>({
@@ -41,8 +42,167 @@ function RadioGroup<T extends string>({
   );
 }
 
+const SMALL_SIZES: CanvasSize[] = ['f4', 'f6', 'f8', 'f10'];
+const LARGE_SIZES: CanvasSize[] = ['f12', 'f15', 'f20', 'f30', 'f50'];
+
+function FrameSizeSelector({
+  value, onChange,
+}: {
+  value: CanvasSize;
+  onChange: (v: CanvasSize) => void;
+}) {
+  const selectedSpec = value !== 'square' ? FRAME_SPECS[value] : null;
+
+  const renderGroup = (label: string, sizes: CanvasSize[]) => (
+    <div>
+      <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        {label}
+      </p>
+      <div className="flex gap-1.5 flex-wrap">
+        {sizes.map(size => {
+          const spec = FRAME_SPECS[size];
+          if (!spec) return null;
+          return (
+            <button
+              key={size}
+              onClick={() => onChange(size)}
+              className={`pill-btn${value === size ? ' active' : ''}`}
+              style={{ fontSize: '0.7rem', padding: '4px 8px' }}
+            >
+              {spec.nameKo}
+              <span style={{ display: 'block', fontSize: '0.55rem', opacity: 0.6, lineHeight: 1 }}>
+                {spec.w}×{spec.h}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <p className="section-label mb-2">
+        액자 규격 <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ Frame Size</span>
+      </p>
+      <div className="flex flex-col gap-2">
+        {renderGroup('소형 / Small', SMALL_SIZES)}
+        {renderGroup('대형 / Large', LARGE_SIZES)}
+        {/* Square */}
+        <div>
+          <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            기타 / Other
+          </p>
+          <button
+            onClick={() => onChange('square')}
+            className={`pill-btn${value === 'square' ? ' active' : ''}`}
+            style={{ fontSize: '0.7rem', padding: '4px 8px' }}
+          >
+            정사각형
+            <span style={{ display: 'block', fontSize: '0.55rem', opacity: 0.6, lineHeight: 1 }}>
+              2480×2480
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Info badge */}
+      {selectedSpec && (
+        <div style={{
+          marginTop: '8px',
+          padding: '6px 10px',
+          background: '#F5F0E8',
+          border: '1px solid #DDD0BC',
+          borderRadius: '4px',
+          fontSize: '0.7rem',
+          color: 'var(--color-muted)',
+        }}>
+          권장 출력 크기: {selectedSpec.w} × {selectedSpec.h} mm
+          <span style={{ opacity: 0.7, marginLeft: '4px' }}>({selectedSpec.nameEn})</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type QualityState = 'good' | 'suggest' | 'warn';
+
+function getQualityState(
+  imagePixels: number,
+  colorCount: number,
+  detailLevel: DetailLevel,
+): QualityState {
+  if (imagePixels < 500_000) return 'warn';
+  if (imagePixels >= 2_000_000 && colorCount >= 24 && detailLevel === 'high') return 'good';
+  return 'suggest';
+}
+
+function QualityBadge({
+  imagePixels,
+  settings,
+  onApplyOptimal,
+}: {
+  imagePixels: number;
+  settings: DiagramSettings;
+  onApplyOptimal: () => void;
+}) {
+  const state = getQualityState(imagePixels, settings.colorCount, settings.detailLevel);
+
+  const badgeStyles: Record<QualityState, { bg: string; border: string; color: string; dot: string }> = {
+    good:    { bg: '#F0FAF0', border: '#86C186', color: '#2D6A2D', dot: '#4CAF50' },
+    suggest: { bg: '#FFFBF0', border: '#D4B86A', color: '#7A5C00', dot: '#F5A623' },
+    warn:    { bg: '#FDF0F0', border: '#E08080', color: '#8B2020', dot: '#E53935' },
+  };
+  const s = badgeStyles[state];
+
+  const messages: Record<QualityState, { ko: string; en: string }> = {
+    good:    { ko: '현재 설정으로 원본 재현이 가능합니다', en: 'Settings are optimal for high-quality output' },
+    suggest: { ko: '더 나은 품질을 위해 설정을 조정해보세요', en: 'Adjust settings for better quality' },
+    warn:    { ko: '이미지 해상도가 낮아 세밀한 도안이 어렵습니다', en: 'Low resolution — fine detail may be limited' },
+  };
+
+  return (
+    <div style={{
+      padding: '8px 10px',
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      borderRadius: '4px',
+      fontSize: '0.72rem',
+      color: s.color,
+    }}>
+      <div className="flex items-start gap-2">
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: s.dot, flexShrink: 0, marginTop: 3,
+        }} />
+        <div className="flex-1">
+          <div style={{ fontWeight: 600 }}>{messages[state].ko}</div>
+          <div style={{ opacity: 0.75, fontSize: '0.65rem' }}>{messages[state].en}</div>
+        </div>
+      </div>
+      {state === 'suggest' && (
+        <button
+          onClick={onApplyOptimal}
+          style={{
+            marginTop: 6, display: 'block', width: '100%',
+            padding: '4px 0',
+            background: '#D4B86A22',
+            border: `1px solid ${s.border}`,
+            borderRadius: '3px',
+            color: s.color,
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+          }}
+        >
+          최적 설정 적용 / Apply Optimal Settings
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPanel({
-  settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl,
+  settings, onChange, onGenerate, isGenerating, hasImage, imageDataUrl, imagePixels,
 }: Props) {
   const set = <K extends keyof DiagramSettings>(k: K, v: DiagramSettings[K]) => {
     if (k === 'canvasSize') {
@@ -50,6 +210,10 @@ export default function SettingsPanel({
     } else {
       onChange({ ...settings, [k]: v });
     }
+  };
+
+  const applyOptimal = () => {
+    onChange({ ...settings, colorCount: 30, detailLevel: 'high', style: 'detailed' });
   };
 
   return (
@@ -91,16 +255,10 @@ export default function SettingsPanel({
         ]}
       />
 
-      {/* Canvas size */}
-      <RadioGroup<CanvasSize>
-        label="캔버스 크기" labelEn="Canvas Size"
+      {/* Frame size */}
+      <FrameSizeSelector
         value={settings.canvasSize}
         onChange={v => set('canvasSize', v)}
-        options={[
-          { value: 'a4',     label: 'A4',       labelEn: 'A4'     },
-          { value: 'a3',     label: 'A3',       labelEn: 'A3'     },
-          { value: 'square', label: '정사각형', labelEn: 'Square' },
-        ]}
       />
 
       {/* Fit mode */}
@@ -140,6 +298,15 @@ export default function SettingsPanel({
           { value: 'detailed', label: '상세', labelEn: 'Detailed' },
         ]}
       />
+
+      {/* Quality recommendation badge */}
+      {hasImage && imagePixels !== undefined && imagePixels > 0 && (
+        <QualityBadge
+          imagePixels={imagePixels}
+          settings={settings}
+          onApplyOptimal={applyOptimal}
+        />
+      )}
 
       {/* Generate button */}
       <button

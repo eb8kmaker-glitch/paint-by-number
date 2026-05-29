@@ -56,11 +56,13 @@ export default function GeneratePage() {
   const router = useRouter();
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [imageDataUrl,    setImageDataUrl]    = useState<string | null>(null);
+  const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
+  const [imagePixels,     setImagePixels]     = useState<number>(0);
   const [settings, setSettings] = useState<DiagramSettings>({
     colorCount:  24,
     detailLevel: 'medium',
-    canvasSize:  'a4',
+    canvasSize:  'f8',
     fitMode:     'fit',
     cropRegion:  null,
     style:       'clean',
@@ -76,6 +78,13 @@ export default function GeneratePage() {
     const stored = sessionStorage.getItem('uploadedImage');
     if (!stored) { router.replace('/'); return; }
     setImageDataUrl(stored);
+    // Compute aspect ratio and pixel count from the stored image
+    const img = new Image();
+    img.onload = () => {
+      setImageAspectRatio(img.naturalWidth / img.naturalHeight);
+      setImagePixels(img.naturalWidth * img.naturalHeight);
+    };
+    img.src = stored;
   }, [router]);
 
   const handleGenerate = useCallback(async () => {
@@ -193,6 +202,7 @@ export default function GeneratePage() {
               isGenerating={isGenerating}
               hasImage={!!imageDataUrl}
               imageDataUrl={imageDataUrl ?? undefined}
+              imagePixels={imagePixels}
             />
 
             {imageDataUrl && (
@@ -216,6 +226,7 @@ export default function GeneratePage() {
                 isGenerating={isGenerating}
                 progress={progress}
                 placeholder={imageDataUrl ?? undefined}
+                imageAspectRatio={imageAspectRatio}
               />
             </div>
 
@@ -256,7 +267,12 @@ export default function GeneratePage() {
                     / Export
                   </span>
                 </h3>
-                <ExportButtons result={result} canvasSize={settings.canvasSize} />
+                <ExportButtons
+                  result={result}
+                  canvasSize={settings.canvasSize}
+                  settings={settings}
+                  originalImageDataUrl={imageDataUrl ?? undefined}
+                />
               </div>
             )}
           </section>
