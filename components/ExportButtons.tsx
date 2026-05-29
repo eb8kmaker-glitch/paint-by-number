@@ -33,6 +33,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
           date: new Date().toLocaleDateString('ko-KR'),
           colorCount: settings.colorCount,
           detailLevel: settings.detailLevel === 'low' ? 'Low' : settings.detailLevel === 'medium' ? 'Medium' : 'High',
+          colorMode: settings.colorMode,
         },
       );
     } catch (err) {
