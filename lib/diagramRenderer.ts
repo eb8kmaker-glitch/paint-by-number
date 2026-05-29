@@ -61,16 +61,18 @@ export interface ColorInfo {
 }
 
 export interface DiagramResult {
-  canvas:        HTMLCanvasElement;
-  colorMap:      Map<number, ColorInfo>;
+  canvas:              HTMLCanvasElement;
+  colorMap:            Map<number, ColorInfo>;
+  labeledRegionCount:  number;
+  totalRegionCount:    number;
   // Stored for fast re-render when colorMode changes (skip K-means)
-  _clusterMap:   Int32Array;
-  _clusterToPaint: PaintColor[];
-  _symbols:      string[];
-  _regions:      import('@/lib/regionSegmentation').Region[];
-  _procW:        number;
-  _procH:        number;
-  _settings:     DiagramSettings;
+  _clusterMap:         Int32Array;
+  _clusterToPaint:     PaintColor[];
+  _symbols:            string[];
+  _regions:            import('@/lib/regionSegmentation').Region[];
+  _procW:              number;
+  _procH:              number;
+  _settings:           DiagramSettings;
 }
 
 export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
@@ -101,9 +103,12 @@ const BLUR_RADIUS: Record<DetailLevel, number> = { low: 4, medium: 2, high: 1 };
 const DPI = 300;
 const MM_TO_PX = DPI / 25.4; // ~11.81 px/mm
 const LABEL_PX = {
-  normal:  Math.round(2.0 * MM_TO_PX), // 24px
-  small:   Math.round(1.5 * MM_TO_PX), // 18px
-  minimum: Math.round(1.2 * MM_TO_PX), // 14px
+  xl:      Math.round(2.4 * MM_TO_PX), // ~28px — large regions
+  large:   Math.round(2.0 * MM_TO_PX), // ~24px
+  medium:  Math.round(1.7 * MM_TO_PX), // ~20px
+  small:   Math.round(1.4 * MM_TO_PX), // ~17px
+  minimum: Math.round(1.1 * MM_TO_PX), // ~13px
+  tiny:    Math.round(0.9 * MM_TO_PX), // ~11px — very small regions
 };
 
 // Physical width in mm (used for mm² label area thresholds)
@@ -121,10 +126,13 @@ function getLabelFontSize(
 ): number | null {
   const pxPerMm = outputWidthPx / frameMmWidth;
   const areaMm2 = regionPixelCount / (pxPerMm * pxPerMm);
-  if (areaMm2 < 15)  return null;
-  if (areaMm2 < 50)  return LABEL_PX.minimum;
-  if (areaMm2 < 150) return LABEL_PX.small;
-  return LABEL_PX.normal;
+  if (areaMm2 < 3)   return null;
+  if (areaMm2 < 8)   return LABEL_PX.tiny;
+  if (areaMm2 < 15)  return LABEL_PX.minimum;
+  if (areaMm2 < 40)  return LABEL_PX.small;
+  if (areaMm2 < 100) return LABEL_PX.medium;
+  if (areaMm2 < 300) return LABEL_PX.large;
+  return LABEL_PX.xl;
 }
 
 // Median filter passes after K-means — reduced to preserve distinct region boundaries
@@ -170,49 +178,57 @@ function findLabelPos(
   pixelCount: number,
   W: number, H: number,
 ): { x: number; y: number } {
-  const sx = Math.round(cx), sy = Math.round(cy);
+  const sx = Math.max(1, Math.min(W - 2, Math.round(cx)));
+  const sy = Math.max(1, Math.min(H - 2, Math.round(cy)));
 
-  // If centroid is inside the region and not on an edge, use it directly
+  // If centroid is well inside the region, use it directly
   const centroidIdx = sy * W + sx;
-  if (centroidIdx >= 0 && centroidIdx < W * H && clusterMap[centroidIdx] === colorIndex) {
-    // Quick check: is centroid well inside (not adjacent to boundary)?
-    const isInterior =
+  if (clusterMap[centroidIdx] === colorIndex &&
       clusterMap[centroidIdx - 1] === colorIndex &&
       clusterMap[centroidIdx + 1] === colorIndex &&
       clusterMap[centroidIdx - W] === colorIndex &&
-      clusterMap[centroidIdx + W] === colorIndex;
-    if (isInterior) return { x: sx, y: sy };
+      clusterMap[centroidIdx + W] === colorIndex) {
+    return { x: sx, y: sy };
   }
 
-  // Sample region pixels and find the one with maximum inset distance
-  // Step size scales with region size for performance
-  const step = Math.max(1, Math.floor(pixelCount / 400));
-  let bestX = sx, bestY = sy, bestDist = -1;
+  // Pole-of-inaccessibility: find region pixel with max inset from boundary
+  const step = Math.max(1, Math.floor(pixelCount / 600));
+  let bestX = -1, bestY = -1, bestDist = -1;
 
-  // Scan bounding box of approximate centroid area
-  const scanR = Math.min(80, Math.ceil(Math.sqrt(pixelCount)));
+  // First pass: scan around centroid (fast path for convex regions)
+  const scanR = Math.min(100, Math.ceil(Math.sqrt(pixelCount) * 1.5));
   const x0 = Math.max(1, sx - scanR), x1 = Math.min(W - 2, sx + scanR);
   const y0 = Math.max(1, sy - scanR), y1 = Math.min(H - 2, sy + scanR);
 
   for (let py = y0; py <= y1; py += step) {
     for (let px = x0; px <= x1; px += step) {
       if (clusterMap[py * W + px] !== colorIndex) continue;
-      // Distance to nearest non-colorIndex pixel (check expanding rings up to 20)
       let dist = 0;
-      outer: for (let r = 1; r <= 20; r++) {
+      outer: for (let r = 1; r <= 25; r++) {
         for (let dy = -r; dy <= r; dy++) {
           for (let dx = -r; dx <= r; dx++) {
             if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
             const nx = px + dx, ny = py + dy;
-            if (nx < 0 || nx >= W || ny < 0 || ny >= H) { dist = r; break outer; }
-            if (clusterMap[ny * W + nx] !== colorIndex) { dist = r; break outer; }
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H || clusterMap[ny * W + nx] !== colorIndex) {
+              dist = r; break outer;
+            }
           }
         }
       }
       if (dist > bestDist) { bestDist = dist; bestX = px; bestY = py; }
     }
   }
-  return { x: bestX, y: bestY };
+
+  if (bestX >= 0) return { x: bestX, y: bestY };
+
+  // Fallback: full-canvas scan at larger step to find any pixel of this color
+  const step2 = Math.max(2, Math.floor(Math.sqrt(W * H) / 40));
+  for (let py = 0; py < H; py += step2) {
+    for (let px = 0; px < W; px += step2) {
+      if (clusterMap[py * W + px] === colorIndex) return { x: px, y: py };
+    }
+  }
+  return { x: sx, y: sy };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -339,7 +355,7 @@ export async function generateDiagram(
     if (info) { info.regionCount++; info.pixelCount += region.pixelCount; }
   }
 
-  const outCanvas = renderToCanvas(
+  const { canvas: outCanvas, labeledCount } = renderToCanvas(
     clusterMap, clusterToPaint, symbols, isEdge, regions,
     W, H, TW, TH, settings.style, settings.colorMode, settings.canvasSize,
   );
@@ -347,6 +363,7 @@ export async function generateDiagram(
   onProgress?.(100);
   return {
     canvas: outCanvas, colorMap,
+    labeledRegionCount: labeledCount, totalRegionCount: regions.length,
     _clusterMap: clusterMap, _clusterToPaint: clusterToPaint,
     _symbols: symbols, _regions: regions,
     _procW: W, _procH: H, _settings: settings,
@@ -356,14 +373,15 @@ export async function generateDiagram(
 // ─────────────────────────────────────────────────────────────────────────────
 // Re-render with a different colorMode — skips the expensive K-means step
 // ─────────────────────────────────────────────────────────────────────────────
-export function reRenderDiagram(prev: DiagramResult, colorMode: ColorMode): HTMLCanvasElement {
+export function reRenderDiagram(prev: DiagramResult, colorMode: ColorMode): { canvas: HTMLCanvasElement; labeledRegionCount: number } {
   const { _clusterMap, _clusterToPaint, _symbols, _regions, _procW, _procH, _settings } = prev;
   const { w: TW, h: TH } = CANVAS_DIMS[_settings.canvasSize];
   const isEdge = buildEdgeMap(_clusterMap, _procW, _procH);
-  return renderToCanvas(
+  const { canvas, labeledCount } = renderToCanvas(
     _clusterMap, _clusterToPaint, _symbols, isEdge, _regions,
     _procW, _procH, TW, TH, _settings.style, colorMode, _settings.canvasSize,
   );
+  return { canvas, labeledRegionCount: labeledCount };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -380,7 +398,7 @@ function renderToCanvas(
   style:      Style,
   colorMode:  ColorMode,
   canvasSize: CanvasSize,
-): HTMLCanvasElement {
+): { canvas: HTMLCanvasElement; labeledCount: number } {
   const gray   = OUTLINE_GRAY[style];
   const edgeId = new ImageData(W, H);
   const ep     = edgeId.data;
@@ -420,14 +438,16 @@ function renderToCanvas(
   outCtx.textBaseline = 'middle';
   outCtx.fillStyle    = colorMode === 'tint' ? '#222222' : '#444444';
 
+  let labeledCount = 0;
   for (const region of regions) {
     const outputPixelCount = region.pixelCount * (scaleX * scaleY);
     const fontSize = getLabelFontSize(outputPixelCount, TW, frameMmWidth);
     if (fontSize === null) continue;
-    outCtx.font = `${fontSize}px Arial, sans-serif`;
+    labeledCount++;
+    outCtx.font = `bold ${fontSize}px Arial, sans-serif`;
     const pos = findLabelPos(region.centroidX, region.centroidY, clusterMap, region.colorIndex, region.pixelCount, W, H);
     outCtx.fillText(symbols[region.colorIndex] ?? '', pos.x * scaleX, pos.y * scaleY);
   }
 
-  return outCanvas;
+  return { canvas: outCanvas, labeledCount };
 }

@@ -117,8 +117,8 @@ export default function GeneratePage() {
       // Use setTimeout to yield to React before the synchronous re-render
       setTimeout(() => {
         try {
-          const newCanvas = reRenderDiagram(result, newSettings.colorMode);
-          setResult(prev => prev ? { ...prev, canvas: newCanvas, _settings: newSettings } : prev);
+          const { canvas: newCanvas, labeledRegionCount } = reRenderDiagram(result, newSettings.colorMode);
+          setResult(prev => prev ? { ...prev, canvas: newCanvas, labeledRegionCount, _settings: newSettings } : prev);
         } finally {
           setIsRerendering(false);
         }
@@ -330,7 +330,11 @@ export default function GeneratePage() {
             }}
           >
             {result ? (
-              <ColorLegend colorMap={result.colorMap} />
+              <ColorLegend
+                colorMap={result.colorMap}
+                labeledRegionCount={result.labeledRegionCount}
+                totalRegionCount={result.totalRegionCount}
+              />
             ) : (
               <div className="flex flex-col items-center gap-3 py-10"
                 style={{ color: 'var(--color-muted)' }}>
