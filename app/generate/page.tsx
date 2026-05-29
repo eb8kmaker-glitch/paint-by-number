@@ -5,7 +5,7 @@ import SettingsPanel from '@/components/SettingsPanel';
 import DiagramCanvas from '@/components/DiagramCanvas';
 import ColorLegend from '@/components/ColorLegend';
 import ExportButtons from '@/components/ExportButtons';
-import { generateDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
+import { generateDiagram, reRenderDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
 import { suggestColorCount } from '@/lib/colorUtils';
 
 const STEPS = [
@@ -68,11 +68,13 @@ export default function GeneratePage() {
     fitMode:     'fit',
     cropRegion:  null,
     style:       'clean',
+    colorMode:   'outline',
   });
-  const [result,       setResult]       = useState<DiagramResult | null>(null);
-  const [progress,     setProgress]     = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error,        setError]        = useState('');
+  const [result,        setResult]        = useState<DiagramResult | null>(null);
+  const [progress,      setProgress]      = useState(0);
+  const [isGenerating,  setIsGenerating]  = useState(false);
+  const [isRerendering, setIsRerendering] = useState(false);
+  const [error,         setError]         = useState('');
 
   const currentStep = result ? 3 : 1;
 
@@ -97,6 +99,32 @@ export default function GeneratePage() {
     };
     img.src = stored;
   }, [router]);
+
+  const handleSettingsChange = useCallback((newSettings: DiagramSettings) => {
+    const prevColorMode = settings.colorMode;
+    setSettings(newSettings);
+    // If only colorMode changed and we have a result, fast re-render without K-means
+    if (
+      result &&
+      newSettings.colorMode !== prevColorMode &&
+      newSettings.colorCount  === settings.colorCount &&
+      newSettings.detailLevel === settings.detailLevel &&
+      newSettings.canvasSize  === settings.canvasSize &&
+      newSettings.fitMode     === settings.fitMode &&
+      newSettings.style       === settings.style
+    ) {
+      setIsRerendering(true);
+      // Use setTimeout to yield to React before the synchronous re-render
+      setTimeout(() => {
+        try {
+          const newCanvas = reRenderDiagram(result, newSettings.colorMode);
+          setResult(prev => prev ? { ...prev, canvas: newCanvas, _settings: newSettings } : prev);
+        } finally {
+          setIsRerendering(false);
+        }
+      }, 0);
+    }
+  }, [settings, result]);
 
   const handleGenerate = useCallback(async () => {
     const img = imgRef.current;
@@ -208,9 +236,9 @@ export default function GeneratePage() {
 
             <SettingsPanel
               settings={settings}
-              onChange={setSettings}
+              onChange={handleSettingsChange}
               onGenerate={handleGenerate}
-              isGenerating={isGenerating}
+              isGenerating={isGenerating || isRerendering}
               hasImage={!!imageDataUrl}
               imageDataUrl={imageDataUrl ?? undefined}
               imagePixels={imagePixels}

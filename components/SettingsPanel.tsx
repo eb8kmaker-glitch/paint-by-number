@@ -1,5 +1,5 @@
 'use client';
-import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode, FRAME_SPECS } from '@/lib/diagramRenderer';
+import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode, ColorMode, FRAME_SPECS } from '@/lib/diagramRenderer';
 import CropPreview from '@/components/CropPreview';
 
 interface Props {
@@ -330,6 +330,17 @@ export default function SettingsPanel({
         options={[
           { value: 'clean',    label: '깔끔', labelEn: 'Clean'    },
           { value: 'detailed', label: '상세', labelEn: 'Detailed' },
+        ]}
+      />
+
+      {/* Color mode toggle */}
+      <RadioGroup<ColorMode>
+        label="색상 가이드" labelEn="Color Guide"
+        value={settings.colorMode}
+        onChange={v => set('colorMode', v)}
+        options={[
+          { value: 'outline', label: '선만',    labelEn: 'Outline' },
+          { value: 'tint',    label: '색상 포함', labelEn: 'Tinted'  },
         ]}
       />
 

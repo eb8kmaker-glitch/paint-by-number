@@ -40,7 +40,7 @@ export async function exportToPdf(
   colorMap: Map<number, ColorInfo>,
   canvasSize: CanvasSize,
   originalImageDataUrl?: string,
-  metadata?: { date?: string; colorCount?: number; detailLevel?: string },
+  metadata?: { date?: string; colorCount?: number; detailLevel?: string; colorMode?: string },
 ): Promise<void> {
   const { jsPDF } = await import('jspdf');
 
@@ -100,6 +100,7 @@ export async function exportToPdf(
     ['Color Count', String(metadata?.colorCount ?? colorMap.size)],
     ['Frame Size', frameName],
     ['Detail Level', metadata?.detailLevel ?? '-'],
+    ['Color Guide', metadata?.colorMode === 'tint' ? 'With Color Tint' : 'Outline Only'],
   ];
   const tableX = MARGIN + 15;
   const tableW = CONTENT_W - 30;
@@ -145,6 +146,12 @@ export async function exportToPdf(
   pdf.setFontSize(9);
   pdf.setTextColor(140, 120, 90);
   pdf.text('Fill each region with the paint color matching its symbol.', MARGIN, 31);
+  if (metadata?.colorMode === 'tint') {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(140, 120, 90);
+    pdf.text('Note: Regions are lightly tinted to indicate paint color. Outlines will be covered when painted.', MARGIN, 37, { maxWidth: CONTENT_W });
+  }
 
   // Divider
   pdf.setDrawColor(200, 169, 110);

@@ -7,6 +7,7 @@ export type DetailLevel = 'low' | 'medium' | 'high';
 export type CanvasSize  = 'f4' | 'f6' | 'f8' | 'f10' | 'f12' | 'f15' | 'f20' | 'f30' | 'f50' | 'square';
 export type Style       = 'clean' | 'detailed';
 export type FitMode     = 'fit' | 'fill';
+export type ColorMode   = 'outline' | 'tint';
 
 export interface FrameSpec {
   nameKo: string;
@@ -43,6 +44,7 @@ export interface DiagramSettings {
   fitMode:     FitMode;
   cropRegion:  CropRegion | null;
   style:       Style;
+  colorMode:   ColorMode;
 }
 
 export interface ColorInfo {
@@ -54,8 +56,16 @@ export interface ColorInfo {
 }
 
 export interface DiagramResult {
-  canvas:   HTMLCanvasElement;
-  colorMap: Map<number, ColorInfo>;
+  canvas:        HTMLCanvasElement;
+  colorMap:      Map<number, ColorInfo>;
+  // Stored for fast re-render when colorMode changes (skip K-means)
+  _clusterMap:   Int32Array;
+  _clusterToPaint: PaintColor[];
+  _symbols:      string[];
+  _regions:      import('@/lib/regionSegmentation').Region[];
+  _procW:        number;
+  _procH:        number;
+  _settings:     DiagramSettings;
 }
 
 export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
@@ -296,51 +306,12 @@ export async function generateDiagram(
   onProgress?.(78); await tick();
 
   // ── 9. Build 1px outline edge map from region boundaries ──────────────────
-  // No dilation — outlines are exactly 1px at processing resolution
   const isEdge = buildEdgeMap(clusterMap, W, H);
-
-  // ── 10. Render outline canvas: white bg, gray outlines ────────────────────
-  const gray = OUTLINE_GRAY[settings.style];
-  const edgeId = new ImageData(W, H);
-  const ep     = edgeId.data;
-  for (let i = 0; i < W * H; i++) {
-    const b = i * 4;
-    if (isEdge[i]) {
-      ep[b] = gray; ep[b + 1] = gray; ep[b + 2] = gray;
-    } else {
-      ep[b] = 255; ep[b + 1] = 255; ep[b + 2] = 255;
-    }
-    ep[b + 3] = 255;
-  }
-
-  const edgeCanvas = document.createElement('canvas');
-  edgeCanvas.width = W; edgeCanvas.height = H;
-  edgeCanvas.getContext('2d')!.putImageData(edgeId, 0, 0);
 
   onProgress?.(85); await tick();
 
-  // ── 11. Scale to output resolution (nearest-neighbour → crisp 1px lines) ──
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width  = TW;
-  outCanvas.height = TH;
-  const outCtx = outCanvas.getContext('2d')!;
-  outCtx.imageSmoothingEnabled = false;
-  outCtx.drawImage(edgeCanvas, 0, 0, TW, TH);
-
-  // ── 12. Place labels at output resolution ─────────────────────────────────
-  // Font size (px at output res) — no bold, dark gray
-  // Area thresholds are at processing resolution
-  const scaleX = TW / W;
-  const scaleY = TH / H;
-  const outPxPerProcPx = TW / W; // ≈ same as scaleX
-
-  outCtx.textAlign    = 'center';
-  outCtx.textBaseline = 'middle';
-  outCtx.fillStyle    = '#444444';
-
-  const frameMmWidth = FRAME_WIDTH_MM[settings.canvasSize];
-
-  // Build colorMap aggregated per cluster
+  // ── 10–12. Render canvas (outline + optional tint + labels) ───────────────
+  // Build colorMap first (needed for both render and result)
   const colorMap = new Map<number, ColorInfo>();
   for (let c = 0; c < K; c++) {
     colorMap.set(c, {
@@ -351,24 +322,101 @@ export async function generateDiagram(
       clusterLab:  centers[c],
     });
   }
-
+  // Accumulate region stats
   for (const region of regions) {
     const info = colorMap.get(region.colorIndex);
-    if (!info) continue;
-    info.regionCount++;
-    info.pixelCount += region.pixelCount;
+    if (info) { info.regionCount++; info.pixelCount += region.pixelCount; }
+  }
 
-    // Convert processing-res pixel count to output-res pixel count for area calc
+  const outCanvas = renderToCanvas(
+    clusterMap, clusterToPaint, symbols, isEdge, regions,
+    W, H, TW, TH, settings.style, settings.colorMode, settings.canvasSize,
+  );
+
+  onProgress?.(100);
+  return {
+    canvas: outCanvas, colorMap,
+    _clusterMap: clusterMap, _clusterToPaint: clusterToPaint,
+    _symbols: symbols, _regions: regions,
+    _procW: W, _procH: H, _settings: settings,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Re-render with a different colorMode — skips the expensive K-means step
+// ─────────────────────────────────────────────────────────────────────────────
+export function reRenderDiagram(prev: DiagramResult, colorMode: ColorMode): HTMLCanvasElement {
+  const { _clusterMap, _clusterToPaint, _symbols, _regions, _procW, _procH, _settings } = prev;
+  const { w: TW, h: TH } = CANVAS_DIMS[_settings.canvasSize];
+  const isEdge = buildEdgeMap(_clusterMap, _procW, _procH);
+  return renderToCanvas(
+    _clusterMap, _clusterToPaint, _symbols, isEdge, _regions,
+    _procW, _procH, TW, TH, _settings.style, colorMode, _settings.canvasSize,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core canvas render: outlines (+ optional tint) + labels
+// ─────────────────────────────────────────────────────────────────────────────
+function renderToCanvas(
+  clusterMap:     Int32Array,
+  clusterToPaint: PaintColor[],
+  symbols:        string[],
+  isEdge:         Uint8Array,
+  regions:        import('@/lib/regionSegmentation').Region[],
+  W: number, H: number,
+  TW: number, TH: number,
+  style:      Style,
+  colorMode:  ColorMode,
+  canvasSize: CanvasSize,
+): HTMLCanvasElement {
+  const gray   = OUTLINE_GRAY[style];
+  const edgeId = new ImageData(W, H);
+  const ep     = edgeId.data;
+  const TINT   = 0.30; // 30% color + 70% white
+
+  for (let i = 0; i < W * H; i++) {
+    const b = i * 4;
+    if (isEdge[i]) {
+      ep[b] = gray; ep[b + 1] = gray; ep[b + 2] = gray;
+    } else if (colorMode === 'tint') {
+      const paint = clusterToPaint[clusterMap[i]];
+      const [r, g, bl] = paint?.rgb ?? [255, 255, 255];
+      ep[b]     = Math.round(255 * (1 - TINT) + r  * TINT);
+      ep[b + 1] = Math.round(255 * (1 - TINT) + g  * TINT);
+      ep[b + 2] = Math.round(255 * (1 - TINT) + bl * TINT);
+    } else {
+      ep[b] = 255; ep[b + 1] = 255; ep[b + 2] = 255;
+    }
+    ep[b + 3] = 255;
+  }
+
+  const edgeCanvas = document.createElement('canvas');
+  edgeCanvas.width = W; edgeCanvas.height = H;
+  edgeCanvas.getContext('2d')!.putImageData(edgeId, 0, 0);
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = TW; outCanvas.height = TH;
+  const outCtx = outCanvas.getContext('2d')!;
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.drawImage(edgeCanvas, 0, 0, TW, TH);
+
+  // Labels
+  const scaleX = TW / W;
+  const scaleY = TH / H;
+  const frameMmWidth = FRAME_WIDTH_MM[canvasSize];
+  outCtx.textAlign    = 'center';
+  outCtx.textBaseline = 'middle';
+  outCtx.fillStyle    = colorMode === 'tint' ? '#222222' : '#444444';
+
+  for (const region of regions) {
     const outputPixelCount = region.pixelCount * (scaleX * scaleY);
     const fontSize = getLabelFontSize(outputPixelCount, TW, frameMmWidth);
     if (fontSize === null) continue;
-
     outCtx.font = `${fontSize}px Arial, sans-serif`;
-
     const pos = findLabelPos(region.centroidX, region.centroidY, clusterMap, region.colorIndex, region.pixelCount, W, H);
-    outCtx.fillText(info.symbol, pos.x * scaleX, pos.y * scaleY);
+    outCtx.fillText(symbols[region.colorIndex] ?? '', pos.x * scaleX, pos.y * scaleY);
   }
 
-  onProgress?.(100);
-  return { canvas: outCanvas, colorMap };
+  return outCanvas;
 }
