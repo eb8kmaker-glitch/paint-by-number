@@ -126,75 +126,108 @@ export async function exportToPdf(
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
   // ══════════════════════════════════════════════════════════════
-  // Page 2 — Color Guide
+  // Page 2 — Color Guide (fixed layout: no overlap, proper 2-col)
   // ══════════════════════════════════════════════════════════════
   pdf.addPage();
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
   pdf.setFillColor(139, 109, 56);
-  pdf.rect(0, 0, A4_W, 8, 'F');
+  pdf.rect(0, 0, A4_W, 12, 'F');
 
-  setFont(16);
+  // Title — below header bar
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(16);
   pdf.setTextColor(44, 34, 24);
-  pdf.text('Color Guide', MARGIN, 22);
-  pdf.setDrawColor(180, 150, 100);
-  pdf.setLineWidth(0.4);
-  pdf.line(MARGIN, 26, A4_W - MARGIN, 26);
+  pdf.text('Color Guide', MARGIN, 24);
 
-  setFont(8.5);
-  pdf.setTextColor(70, 60, 50);
-  pdf.text('Fill each region with the paint color matching its symbol.', MARGIN, 33);
+  // Subtitle
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(140, 120, 90);
+  pdf.text('Fill each region with the paint color matching its symbol.', MARGIN, 31);
+
+  // Divider
+  pdf.setDrawColor(200, 169, 110);
+  pdf.setLineWidth(0.3);
+  pdf.line(MARGIN, 34, A4_W - MARGIN, 34);
 
   const entries = Array.from(colorMap.values())
     .filter(e => e.regionCount > 0)
     .sort((a, b) => a.symbol.localeCompare(b.symbol, undefined, { numeric: true }));
 
-  const SWATCH_SIZE = 12;
-  const ROW_H = 14;
-  const COL_W = CONTENT_W / 2;
-  let curY = 42;
+  // Column x positions for left (col 0) and right (col 1) halves
+  const C0 = MARGIN;          // left col start
+  const C1 = MARGIN + 95;     // right col start
+  const colOffsets = [
+    { sym: 0, sw: 8, name: 22, hex: 60, zones: 82 },  // within a column
+  ];
+  const SWATCH = 6;
+  const ROW_H  = 8;
+  const HDR_Y  = 40;
+  const DATA_Y = 44;
 
-  // Column headers
-  const headers = ['Sym', 'Color', 'Name', 'HEX', 'Zones'];
-  const hOffsets = [0, 16, 30, 68, 90];
-  headers.forEach((h, hi) => {
-    const x = MARGIN + hOffsets[hi];
-    setFont(7);
-    pdf.setTextColor(100, 85, 65);
-    pdf.text(h, x, curY);
+  // Column headers — both columns
+  [C0, C1].forEach(cx => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(140, 120, 90);
+    pdf.text('Sym',   cx + colOffsets[0].sym,   HDR_Y);
+    pdf.text('Color', cx + colOffsets[0].sw,    HDR_Y);
+    pdf.text('Name',  cx + colOffsets[0].name,  HDR_Y);
+    pdf.text('HEX',   cx + colOffsets[0].hex,   HDR_Y);
+    pdf.text('Zones', cx + colOffsets[0].zones, HDR_Y);
   });
-  curY += 5;
   pdf.setDrawColor(200, 175, 140);
-  pdf.setLineWidth(0.3);
-  pdf.line(MARGIN, curY, A4_W - MARGIN, curY);
-  curY += 3;
+  pdf.setLineWidth(0.2);
+  pdf.line(MARGIN, HDR_Y + 2, A4_W - MARGIN, HDR_Y + 2);
 
-  let col = 0, rowInCol = 0;
-  entries.forEach((entry) => {
-    const maxRowsPerCol = Math.floor((A4_H - MARGIN - curY - 25) / ROW_H);
-    const baseX = MARGIN + col * COL_W;
-    const y = curY + rowInCol * ROW_H;
+  const maxRows = Math.floor((A4_H - MARGIN - DATA_Y - 10) / ROW_H);
+  const halfLen = Math.ceil(entries.length / 2);
 
+  entries.forEach((entry, i) => {
+    const isRight = i >= halfLen;
+    const rowIdx  = isRight ? i - halfLen : i;
+    if (rowIdx >= maxRows) return; // overflow guard
+    const cx = isRight ? C1 : C0;
+    const y  = DATA_Y + rowIdx * ROW_H;
+    const textY = y + SWATCH * 0.7;
+
+    // Alternating row tint (drawn before text)
+    if (rowIdx % 2 === 0) {
+      pdf.setFillColor(248, 244, 238);
+      pdf.rect(cx - 1, y - 1, 90, ROW_H, 'F');
+    }
+
+    // Swatch
     const [r, g, b] = entry.paintColor.rgb;
     pdf.setFillColor(r, g, b);
-    pdf.rect(baseX, y - SWATCH_SIZE + 2, SWATCH_SIZE, SWATCH_SIZE, 'F');
-    pdf.setDrawColor(150, 150, 150);
-    pdf.setLineWidth(0.2);
-    pdf.rect(baseX, y - SWATCH_SIZE + 2, SWATCH_SIZE, SWATCH_SIZE, 'S');
+    pdf.rect(cx + colOffsets[0].sw, y, SWATCH, SWATCH, 'F');
+    pdf.setDrawColor(160, 160, 160);
+    pdf.setLineWidth(0.15);
+    pdf.rect(cx + colOffsets[0].sw, y, SWATCH, SWATCH, 'S');
 
-    setFont(8);
-    pdf.setTextColor(20, 20, 20);
-    pdf.text(entry.symbol, baseX + 14, y - 2);
-    setFont(7);
-    pdf.setTextColor(40, 40, 40);
-    pdf.text(entry.paintColor.name, baseX + 28, y - 2);
-    pdf.setTextColor(80, 80, 80);
-    pdf.text(entry.paintColor.hex, baseX + 66, y - 2);
-    pdf.setTextColor(100, 85, 65);
-    pdf.text(`x${entry.regionCount}`, baseX + 88, y - 2);
+    // Symbol
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(44, 34, 24);
+    pdf.text(entry.symbol, cx + colOffsets[0].sym, textY);
 
-    rowInCol++;
-    if (rowInCol >= maxRowsPerCol && col === 0) { col = 1; rowInCol = 0; }
+    // Name (truncated)
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(44, 34, 24);
+    const nameStr = entry.paintColor.name.length > 14
+      ? entry.paintColor.name.slice(0, 13) + '…'
+      : entry.paintColor.name;
+    pdf.text(nameStr, cx + colOffsets[0].name, textY);
+
+    // HEX
+    pdf.setTextColor(100, 90, 80);
+    pdf.text(entry.paintColor.hex, cx + colOffsets[0].hex, textY);
+
+    // Zones
+    pdf.setTextColor(140, 120, 90);
+    pdf.text(`x${entry.regionCount}`, cx + colOffsets[0].zones, textY);
   });
 
   setFont(8);
