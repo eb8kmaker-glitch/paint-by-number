@@ -32,7 +32,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
         {
           date: new Date().toLocaleDateString('ko-KR'),
           colorCount: settings.colorCount,
-          detailLevel: settings.detailLevel === 'low' ? '낮음' : settings.detailLevel === 'medium' ? '중간' : '높음',
+          detailLevel: settings.detailLevel === 'low' ? 'Low' : settings.detailLevel === 'medium' ? 'Medium' : 'High',
         },
       );
     } catch (err) {

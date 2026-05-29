@@ -304,7 +304,15 @@ export async function exportToPdf(
     pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
   }
 
-  pdf.save('paint-by-number.pdf');
+  const blob = pdf.output('blob');
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'paint-by-number.pdf';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export function exportToPng(canvas: HTMLCanvasElement, filename = 'paint-by-number.png'): void {
