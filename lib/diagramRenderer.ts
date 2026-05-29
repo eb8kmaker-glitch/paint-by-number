@@ -85,6 +85,37 @@ const MIN_LABEL_PX: Record<DetailLevel, number> = {
 const tick = () => new Promise<void>(r => setTimeout(r, 0));
 
 // ─────────────────────────────────────────────────────────
+// Unsharp-mask sharpening (3×3 convolution)
+// Applies in-place to the pixel buffer of a W×H canvas.
+// Helps low-res images produce crisper region boundaries.
+// ─────────────────────────────────────────────────────────
+function applySharpen(ctx: CanvasRenderingContext2D, W: number, H: number, amount = 0.6): void {
+  const id = ctx.getImageData(0, 0, W, H);
+  const src = new Uint8ClampedArray(id.data);
+  const dst = id.data;
+
+  // Sharpen kernel: identity + amount * (identity - blur)
+  // Equivalent to: out = src + amount*(src - blur(src))
+  const k = amount;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = (y * W + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = src[i + c];
+        const neighbours =
+          src[((y-1)*W + x    ) * 4 + c] +
+          src[((y+1)*W + x    ) * 4 + c] +
+          src[(y    *W + x - 1) * 4 + c] +
+          src[(y    *W + x + 1) * 4 + c];
+        const blurred = neighbours / 4;
+        dst[i + c] = Math.max(0, Math.min(255, Math.round(center + k * (center - blurred))));
+      }
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+}
+
+// ─────────────────────────────────────────────────────────
 // Main entry point
 // ─────────────────────────────────────────────────────────
 
@@ -139,6 +170,13 @@ export async function generateDiagram(
       }
     }
     srcCtx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, W, H);
+  }
+
+  // Apply sharpening when source image is low-res (< 500K px) to improve
+  // region boundary definition before K-means clustering
+  const srcPixels = img.naturalWidth * img.naturalHeight;
+  if (srcPixels < 500_000) {
+    applySharpen(srcCtx, W, H, 0.7);
   }
 
   const { data: px } = srcCtx.getImageData(0, 0, W, H); // RGBA flat

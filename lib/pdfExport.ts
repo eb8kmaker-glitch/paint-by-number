@@ -9,20 +9,34 @@ const MARGIN = 15;
 const CONTENT_W = A4_W - 2 * MARGIN;
 const CONTENT_H = A4_H - 2 * MARGIN;
 
-async function loadKoreanFont(doc: import('jspdf').jsPDF) {
-  const response = await fetch('/fonts/NotoSansKR-Regular.ttf');
-  const fontBuffer = await response.arrayBuffer();
-  const fontBase64 = btoa(
-    new Uint8Array(fontBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-  );
-  doc.addFileToVFS('NotoSansKR-Regular.ttf', fontBase64);
-  doc.addFont('NotoSansKR-Regular.ttf', 'NotoSansKR', 'normal');
-  doc.setFont('NotoSansKR');
+async function loadKoreanFont(doc: import('jspdf').jsPDF): Promise<boolean> {
+  try {
+    const response = await fetch('/fonts/NotoSansKR-Regular.ttf');
+    if (!response.ok) return false;
+    const fontBuffer = await response.arrayBuffer();
+    // Chunk-based btoa — avoids O(n²) string concat and spread-stack overflow
+    const bytes = new Uint8Array(fontBuffer);
+    const CHUNK = 0x8000; // 32 KB
+    const parts: string[] = [];
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
+    }
+    const fontBase64 = btoa(parts.join(''));
+    doc.addFileToVFS('NotoSansKR-Regular.ttf', fontBase64);
+    doc.addFont('NotoSansKR-Regular.ttf', 'NotoSansKR', 'normal');
+    doc.setFont('NotoSansKR', 'normal');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function setKorean(doc: import('jspdf').jsPDF) {
-  doc.setFont('NotoSansKR');
+let _koreanFontLoaded = false;
+
+function setKoreanIfLoaded(doc: import('jspdf').jsPDF) {
+  if (_koreanFontLoaded) doc.setFont('NotoSansKR', 'normal');
 }
+
 
 export async function exportToPdf(
   diagramCanvas: HTMLCanvasElement,
@@ -35,7 +49,7 @@ export async function exportToPdf(
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  await loadKoreanFont(pdf);
+  _koreanFontLoaded = await loadKoreanFont(pdf);
 
   const frameSpec = FRAME_SPECS[canvasSize];
   const frameName = frameSpec
@@ -45,7 +59,7 @@ export async function exportToPdf(
   // ══════════════════════════════════════════════════════════════
   // Page 1 — Cover
   // ══════════════════════════════════════════════════════════════
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
 
   // Background tint
   pdf.setFillColor(253, 250, 245);
@@ -121,7 +135,7 @@ export async function exportToPdf(
   // Footer
   pdf.setFontSize(8);
   pdf.setTextColor(150, 130, 100);
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
@@ -129,7 +143,7 @@ export async function exportToPdf(
   // Page 2 — Color Guide
   // ══════════════════════════════════════════════════════════════
   pdf.addPage();
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
 
   pdf.setFillColor(253, 250, 245);
   pdf.rect(0, 0, A4_W, A4_H, 'F');
@@ -138,7 +152,7 @@ export async function exportToPdf(
 
   pdf.setFontSize(16);
   pdf.setTextColor(44, 34, 24);
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
   pdf.text('색상 가이드 / Color Guide', MARGIN, 22);
 
   pdf.setDrawColor(180, 150, 100);
@@ -148,7 +162,7 @@ export async function exportToPdf(
   // Instructions
   pdf.setFontSize(8.5);
   pdf.setTextColor(70, 60, 50);
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
   pdf.text('도안의 각 구역에 표시된 기호에 해당하는 색상으로 채색하세요.', MARGIN, 33);
   pdf.text('Fill each numbered region with the corresponding paint color.', MARGIN, 38);
 
@@ -169,7 +183,7 @@ export async function exportToPdf(
     const x = MARGIN + (col === 0 ? 0 : COL_W) + [0, 16, 30, 68, 90][hi];
     pdf.setFontSize(7);
     pdf.setTextColor(100, 85, 65);
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
     pdf.text(h, x, headerY);
   });
   curY += 5;
@@ -204,7 +218,7 @@ export async function exportToPdf(
     // Paint name
     pdf.setFontSize(7);
     pdf.setTextColor(40, 40, 40);
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
     pdf.text(entry.paintColor.nameKo, baseX + 28, y - 2);
 
     // Hex
@@ -225,7 +239,7 @@ export async function exportToPdf(
   // Footer
   pdf.setFontSize(8);
   pdf.setTextColor(150, 130, 100);
-  setKorean(pdf);
+  setKoreanIfLoaded(pdf);
   pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
@@ -258,7 +272,7 @@ export async function exportToPdf(
     for (let tx = 0; tx < tilesX; tx++) {
       tileNum++;
       pdf.addPage();
-      setKorean(pdf);
+      setKoreanIfLoaded(pdf);
 
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, A4_W, A4_H, 'F');
@@ -266,7 +280,7 @@ export async function exportToPdf(
       // Page indicator
       pdf.setFontSize(8);
       pdf.setTextColor(120, 100, 80);
-      setKorean(pdf);
+      setKoreanIfLoaded(pdf);
       pdf.text(`[ ${tileNum} / ${totalTiles} ]`, A4_W - MARGIN, MARGIN - 4, { align: 'right' });
 
       // Tile source region in mm
@@ -305,13 +319,13 @@ export async function exportToPdf(
       // Scale bar
       pdf.setFontSize(7);
       pdf.setTextColor(120, 100, 80);
-      setKorean(pdf);
+      setKoreanIfLoaded(pdf);
       pdf.text(`1 구역 ≈ 10mm`, MARGIN, MARGIN + srcH_mm + 6);
 
       // Footer
       pdf.setFontSize(7);
       pdf.setTextColor(150, 130, 100);
-      setKorean(pdf);
+      setKoreanIfLoaded(pdf);
       pdf.text('Paint by Number Generator — paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
     }
   }
@@ -321,7 +335,7 @@ export async function exportToPdf(
   // ══════════════════════════════════════════════════════════════
   if (originalImageDataUrl) {
     pdf.addPage();
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
 
     pdf.setFillColor(253, 250, 245);
     pdf.rect(0, 0, A4_W, A4_H, 'F');
@@ -330,7 +344,7 @@ export async function exportToPdf(
 
     pdf.setFontSize(14);
     pdf.setTextColor(44, 34, 24);
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
     pdf.text('완성 참고 이미지 / Original Reference', A4_W / 2, 20, { align: 'center' });
 
     pdf.setDrawColor(180, 150, 100);
@@ -350,13 +364,13 @@ export async function exportToPdf(
     // Caption
     pdf.setFontSize(8.5);
     pdf.setTextColor(100, 85, 65);
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
     pdf.text('채색 시 이 이미지를 참고하세요 / Use this image as reference while painting', A4_W / 2, 30 + ih + 8, { align: 'center' });
 
     // Footer
     pdf.setFontSize(8);
     pdf.setTextColor(150, 130, 100);
-    setKorean(pdf);
+    setKoreanIfLoaded(pdf);
     pdf.text('Paint by Number Generator', A4_W / 2, A4_H - 8, { align: 'center' });
     pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
   }
