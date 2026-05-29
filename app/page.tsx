@@ -20,8 +20,8 @@ const FEATURES = [
   {
     dot: '#C8A96E',
     titleKo: '전문 물감 색상',
-    titleEn: '24 Pro Acrylic Colors',
-    descKo:  '24가지 표준 아크릴 물감 기준',
+    titleEn: '24–48 Acrylic Colors',
+    descKo:  '24~48가지 아크릴 물감 색상',
   },
   {
     dot: '#C4622D',

@@ -77,8 +77,40 @@ const PROC_W = 800;
 // Gaussian blur radius before K-means (smooths noise → fewer jagged regions)
 const BLUR_RADIUS: Record<DetailLevel, number> = { low: 4, medium: 2, high: 1 };
 
-// Median filter passes after K-means (smooths cluster-map boundaries)
-const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 4, medium: 2, high: 1 };
+// Physical label sizes at 300 dpi — constant regardless of frame size
+const DPI = 300;
+const MM_TO_PX = DPI / 25.4; // ~11.81 px/mm
+const LABEL_PX = {
+  normal:  Math.round(2.0 * MM_TO_PX), // 24px
+  small:   Math.round(1.5 * MM_TO_PX), // 18px
+  minimum: Math.round(1.2 * MM_TO_PX), // 14px
+};
+
+// Frame physical width in mm (used for mm² area thresholds)
+const FRAME_WIDTH_MM: Record<CanvasSize, number> = {
+  f4: 333, f6: 410, f8: 455, f10: 530,
+  f12: 606, f15: 652, f20: 727, f30: 910, f50: 1167,
+  square: 210,
+};
+
+function getLabelFontSize(
+  regionPixelCount: number,
+  outputWidthPx: number,
+  frameMmWidth: number,
+): number | null {
+  const pxPerMm = outputWidthPx / frameMmWidth;
+  const areaMm2 = regionPixelCount / (pxPerMm * pxPerMm);
+  if (areaMm2 < 15)  return null;
+  if (areaMm2 < 50)  return LABEL_PX.minimum;
+  if (areaMm2 < 150) return LABEL_PX.small;
+  return LABEL_PX.normal;
+}
+
+// Median filter passes after K-means — reduced to preserve distinct region boundaries
+const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 2, medium: 1, high: 0 };
+
+// K-means iterations per detail level — more iterations = better cluster separation
+const KMEANS_ITER: Record<DetailLevel, number> = { low: 20, medium: 30, high: 50 };
 
 // Outline gray level: clean = light gray, detailed = slightly darker
 const OUTLINE_GRAY: Record<Style, number> = { clean: 170, detailed: 120 };
@@ -198,7 +230,7 @@ export async function generateDiagram(
     ? Math.min(settings.colorCount, 16)
     : settings.colorCount;
 
-  const { centers } = kMeans(sampled, K, 25);
+  const { centers } = kMeans(sampled, K, KMEANS_ITER[settings.detailLevel]);
   onProgress?.(42); await tick();
 
   // ── 5. Assign every pixel to nearest cluster ──────────────────────────────
@@ -275,6 +307,8 @@ export async function generateDiagram(
   outCtx.textBaseline = 'middle';
   outCtx.fillStyle    = '#444444';
 
+  const frameMmWidth = FRAME_WIDTH_MM[settings.canvasSize];
+
   // Build colorMap aggregated per cluster
   const colorMap = new Map<number, ColorInfo>();
   for (let c = 0; c < K; c++) {
@@ -293,16 +327,12 @@ export async function generateDiagram(
     info.regionCount++;
     info.pixelCount += region.pixelCount;
 
-    if (region.pixelCount < 300) continue; // skip too-small regions
+    // Convert processing-res pixel count to output-res pixel count for area calc
+    const outputPixelCount = region.pixelCount * (scaleX * scaleY);
+    const fontSize = getLabelFontSize(outputPixelCount, TW, frameMmWidth);
+    if (fontSize === null) continue;
 
-    // Font size tier (in processing-res pixels, then scaled to output)
-    const procFontSize = region.pixelCount < 1000 ?  7
-                       : region.pixelCount < 4000 ?  8
-                       : region.pixelCount < 12000 ? 9
-                       : 10;
-    const outputFontSize = Math.round(procFontSize * outPxPerProcPx);
-
-    outCtx.font = `${outputFontSize}px Arial, sans-serif`;
+    outCtx.font = `${fontSize}px Arial, sans-serif`;
 
     const pos = findLabelPos(region.centroidX, region.centroidY, isEdge, W, H);
     outCtx.fillText(info.symbol, pos.x * scaleX, pos.y * scaleY);
