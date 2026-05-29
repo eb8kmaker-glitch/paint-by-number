@@ -243,11 +243,39 @@ export async function exportToPdf(
   pdf.text('paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
 
   // ══════════════════════════════════════════════════════════════
-  // Page 3+ — Diagram Tiles
-  // Scale the canvas down to max 2480px (A4@300dpi) before tiling
-  // to keep toDataURL fast and memory usage under control.
+  // Page 3+ — Diagram (single page for print sizes; tiled for frame sizes)
   // ══════════════════════════════════════════════════════════════
+  const isPrintSize = frameSpec?.group === 'print';
   const scaledDiagram = scaleCanvas(diagramCanvas, 2480);
+
+  if (isPrintSize) {
+    // Print sizes: one dedicated page in the correct paper format
+    const fmt = canvasSize as 'a5' | 'a4' | 'a3';
+    pdf.addPage([frameSpec!.w, frameSpec!.h], 'portrait');
+    const pw = frameSpec!.w, ph = frameSpec!.h;
+    const pm = 10; // 10mm margin
+    const iw = pw - 2 * pm, ih = ph - 2 * pm;
+    // Scale diagram to fit within margins preserving aspect
+    const diagAR = diagramCanvas.width / diagramCanvas.height;
+    const pageAR = iw / ih;
+    let dw = iw, dh = iw / diagAR;
+    if (dh > ih) { dh = ih; dw = ih * diagAR; }
+    const dx = pm + (iw - dw) / 2;
+    const dy = pm + (ih - dh) / 2;
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pw, ph, 'F');
+    pdf.addImage(scaledDiagram.toDataURL('image/jpeg', 0.92), 'JPEG', dx, dy, dw, dh);
+    // Corner marks
+    pdf.setDrawColor(180, 160, 130);
+    pdf.setLineWidth(0.3);
+    [[dx, dy], [dx + dw, dy], [dx, dy + dh], [dx + dw, dy + dh]].forEach(([x, y]) => {
+      pdf.line(x - 3, y, x + 3, y); pdf.line(x, y - 3, x, y + 3);
+    });
+    setFont(7);
+    pdf.setTextColor(150, 130, 100);
+    pdf.text(`${frameSpec!.nameEn} — Paint by Number Generator`, pw / 2, ph - 4, { align: 'center' });
+  } else {
+  // Frame / square sizes: tile across A4 pages
 
   const TILE_W_MM = CONTENT_W;
   const TILE_H_MM = CONTENT_H - 12;
@@ -312,6 +340,7 @@ export async function exportToPdf(
       pdf.text('Paint by Number Generator — paint-by-number-two.vercel.app', A4_W / 2, A4_H - 4, { align: 'center' });
     }
   }
+  } // end else (frame/square tiling)
 
   // ══════════════════════════════════════════════════════════════
   // Final Page — Reference Image

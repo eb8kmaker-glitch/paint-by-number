@@ -4,7 +4,7 @@ import { segmentRegions, medianFilterQuantized } from '@/lib/regionSegmentation'
 import { PaintColor } from '@/constants/paintColors';
 
 export type DetailLevel = 'low' | 'medium' | 'high';
-export type CanvasSize  = 'f4' | 'f6' | 'f8' | 'f10' | 'f12' | 'f15' | 'f20' | 'f30' | 'f50' | 'square';
+export type CanvasSize  = 'a5' | 'a4' | 'a3' | 'f4' | 'f6' | 'f8' | 'f10' | 'f12' | 'f15' | 'f20' | 'f30' | 'f50' | 'square';
 export type Style       = 'clean' | 'detailed';
 export type FitMode     = 'fit' | 'fill';
 export type ColorMode   = 'outline' | 'tint';
@@ -14,10 +14,15 @@ export interface FrameSpec {
   nameEn: string;
   w: number;
   h: number;
-  group: 'small' | 'large';
+  group: 'print' | 'small' | 'large' | 'other';
 }
 
 export const FRAME_SPECS: Record<CanvasSize, FrameSpec | null> = {
+  // Print sizes (portrait, 300 dpi)
+  a5:     { nameKo: 'A5',   nameEn: 'A5',  w: 148,  h: 210,  group: 'print' },
+  a4:     { nameKo: 'A4',   nameEn: 'A4',  w: 210,  h: 297,  group: 'print' },
+  a3:     { nameKo: 'A3',   nameEn: 'A3',  w: 297,  h: 420,  group: 'print' },
+  // Korean frame sizes
   f4:     { nameKo: '4호',  nameEn: 'F4',  w: 333,  h: 242,  group: 'small' },
   f6:     { nameKo: '6호',  nameEn: 'F6',  w: 410,  h: 318,  group: 'small' },
   f8:     { nameKo: '8호',  nameEn: 'F8',  w: 455,  h: 380,  group: 'small' },
@@ -69,6 +74,11 @@ export interface DiagramResult {
 }
 
 export const CANVAS_DIMS: Record<CanvasSize, { w: number; h: number }> = {
+  // Print sizes at 300 dpi (portrait)
+  a5:     { w: 1748,  h: 2480  },
+  a4:     { w: 2480,  h: 3508  },
+  a3:     { w: 3508,  h: 4961  },
+  // Frame sizes
   f4:     { w: 3937,  h: 2858  },
   f6:     { w: 4843,  h: 3756  },
   f8:     { w: 5374,  h: 4488  },
@@ -96,8 +106,9 @@ const LABEL_PX = {
   minimum: Math.round(1.2 * MM_TO_PX), // 14px
 };
 
-// Frame physical width in mm (used for mm² area thresholds)
+// Physical width in mm (used for mm² label area thresholds)
 const FRAME_WIDTH_MM: Record<CanvasSize, number> = {
+  a5: 148, a4: 210, a3: 297,
   f4: 333, f6: 410, f8: 455, f10: 530,
   f12: 606, f15: 652, f20: 727, f30: 910, f50: 1167,
   square: 210,

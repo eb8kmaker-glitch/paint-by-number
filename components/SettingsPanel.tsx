@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import { DiagramSettings, DetailLevel, CanvasSize, Style, FitMode, ColorMode, FRAME_SPECS } from '@/lib/diagramRenderer';
 import CropPreview from '@/components/CropPreview';
 
@@ -43,33 +44,33 @@ function RadioGroup<T extends string>({
   );
 }
 
-const SMALL_SIZES: CanvasSize[] = ['f4', 'f6', 'f8', 'f10'];
-const LARGE_SIZES: CanvasSize[] = ['f12', 'f15', 'f20', 'f30', 'f50'];
+const PRINT_SIZES:  CanvasSize[] = ['a5', 'a4', 'a3'];
+const SMALL_SIZES:  CanvasSize[] = ['f4', 'f6', 'f8', 'f10'];
+const LARGE_SIZES:  CanvasSize[] = ['f12', 'f15', 'f20', 'f30', 'f50'];
 
-function FrameSizeSelector({
+function SizeSelector({
   value, onChange,
 }: {
   value: CanvasSize;
   onChange: (v: CanvasSize) => void;
 }) {
-  const selectedSpec = value !== 'square' ? FRAME_SPECS[value] : null;
+  const selectedSpec = FRAME_SPECS[value];
+  const groupLabelStyle: React.CSSProperties = {
+    fontSize: '0.65rem', color: 'var(--color-muted)',
+    marginBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase',
+  };
+  const btnStyle: React.CSSProperties = { fontSize: '0.7rem', padding: '4px 8px' };
 
   const renderGroup = (label: string, sizes: CanvasSize[]) => (
     <div>
-      <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-        {label}
-      </p>
+      <p style={groupLabelStyle}>{label}</p>
       <div className="flex gap-1.5 flex-wrap">
         {sizes.map(size => {
           const spec = FRAME_SPECS[size];
           if (!spec) return null;
           return (
-            <button
-              key={size}
-              onClick={() => onChange(size)}
-              className={`pill-btn${value === size ? ' active' : ''}`}
-              style={{ fontSize: '0.7rem', padding: '4px 8px' }}
-            >
+            <button key={size} onClick={() => onChange(size)}
+              className={`pill-btn${value === size ? ' active' : ''}`} style={btnStyle}>
               {spec.nameKo}
               <span style={{ display: 'block', fontSize: '0.55rem', opacity: 0.6, lineHeight: 1 }}>
                 {spec.w}×{spec.h}
@@ -84,21 +85,17 @@ function FrameSizeSelector({
   return (
     <div>
       <p className="section-label mb-2">
-        액자 규격 <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ Frame Size</span>
+        캔버스 크기 <span style={{ textTransform: 'none', letterSpacing: 'normal', opacity: 0.65 }}>/ Canvas Size</span>
       </p>
       <div className="flex flex-col gap-2">
-        {renderGroup('소형 / Small', SMALL_SIZES)}
-        {renderGroup('대형 / Large', LARGE_SIZES)}
+        {renderGroup('인쇄 규격 / Print', PRINT_SIZES)}
+        {renderGroup('액자 소형 / Frame S', SMALL_SIZES)}
+        {renderGroup('액자 대형 / Frame L', LARGE_SIZES)}
         {/* Square */}
         <div>
-          <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            기타 / Other
-          </p>
-          <button
-            onClick={() => onChange('square')}
-            className={`pill-btn${value === 'square' ? ' active' : ''}`}
-            style={{ fontSize: '0.7rem', padding: '4px 8px' }}
-          >
+          <p style={groupLabelStyle}>기타 / Other</p>
+          <button onClick={() => onChange('square')}
+            className={`pill-btn${value === 'square' ? ' active' : ''}`} style={btnStyle}>
             정사각형
             <span style={{ display: 'block', fontSize: '0.55rem', opacity: 0.6, lineHeight: 1 }}>
               2480×2480
@@ -107,19 +104,16 @@ function FrameSizeSelector({
         </div>
       </div>
 
-      {/* Info badge */}
       {selectedSpec && (
         <div style={{
-          marginTop: '8px',
-          padding: '6px 10px',
-          background: '#F5F0E8',
-          border: '1px solid #DDD0BC',
-          borderRadius: '4px',
-          fontSize: '0.7rem',
-          color: 'var(--color-muted)',
+          marginTop: '8px', padding: '6px 10px',
+          background: '#F5F0E8', border: '1px solid #DDD0BC',
+          borderRadius: '4px', fontSize: '0.7rem', color: 'var(--color-muted)',
         }}>
-          권장 출력 크기: {selectedSpec.w} × {selectedSpec.h} mm
-          <span style={{ opacity: 0.7, marginLeft: '4px' }}>({selectedSpec.nameEn})</span>
+          {selectedSpec.group === 'print'
+            ? `인쇄 크기: ${selectedSpec.w} × ${selectedSpec.h} mm (${selectedSpec.nameEn})`
+            : `권장 출력 크기: ${selectedSpec.w} × ${selectedSpec.h} mm (${selectedSpec.nameEn})`
+          }
         </div>
       )}
     </div>
@@ -128,13 +122,25 @@ function FrameSizeSelector({
 
 type QualityState = 'good' | 'suggest' | 'warn';
 
+// Optimal color count varies by physical canvas size
+const OPTIMAL_COLOR_COUNT: Partial<Record<CanvasSize, number>> = {
+  a5: 24, a4: 28, a3: 36,
+  f8: 32, f20: 40, f50: 48,
+};
+
+function getOptimalColorCount(canvasSize: CanvasSize): number {
+  return OPTIMAL_COLOR_COUNT[canvasSize] ?? 36;
+}
+
 function getQualityState(
   imagePixels: number,
   colorCount: number,
   detailLevel: DetailLevel,
+  canvasSize: CanvasSize,
 ): QualityState {
   if (imagePixels < 500_000) return 'warn';
-  if (imagePixels >= 2_000_000 && colorCount >= 36 && detailLevel === 'high') return 'good';
+  const optimal = getOptimalColorCount(canvasSize);
+  if (imagePixels >= 2_000_000 && colorCount >= optimal && detailLevel === 'high') return 'good';
   return 'suggest';
 }
 
@@ -147,7 +153,7 @@ function QualityBadge({
   settings: DiagramSettings;
   onApplyOptimal: () => void;
 }) {
-  const state = getQualityState(imagePixels, settings.colorCount, settings.detailLevel);
+  const state = getQualityState(imagePixels, settings.colorCount, settings.detailLevel, settings.canvasSize);
 
   const badgeStyles: Record<QualityState, { bg: string; border: string; color: string; dot: string }> = {
     good:    { bg: '#F0FAF0', border: '#86C186', color: '#2D6A2D', dot: '#4CAF50' },
@@ -214,7 +220,7 @@ export default function SettingsPanel({
   };
 
   const applyOptimal = () => {
-    onChange({ ...settings, colorCount: 36, detailLevel: 'high', style: 'detailed' });
+    onChange({ ...settings, colorCount: getOptimalColorCount(settings.canvasSize), detailLevel: 'high', style: 'detailed' });
   };
 
   return (
@@ -290,7 +296,7 @@ export default function SettingsPanel({
       />
 
       {/* Frame size */}
-      <FrameSizeSelector
+      <SizeSelector
         value={settings.canvasSize}
         onChange={v => set('canvasSize', v)}
       />
