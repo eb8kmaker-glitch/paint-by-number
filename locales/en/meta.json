@@ -1,0 +1,9 @@
+{
+  "title": "PaintKit | Paint by Number Diagram Generator",
+  "titleTemplate": "%s | PaintKit",
+  "description": "Turn your photos into paint by number diagrams. Auto color mapping to acrylic paints, PDF export in A4/A3/frame sizes. Runs in browser, no server upload.",
+  "ogTitle": "Create Your Own Paint by Number Diagram — PaintKit",
+  "ogDescription": "Upload photo → Generate diagram → Export PDF. Free, browser-only.",
+  "ogImageAlt": "PaintKit — Convert photos to paint by number diagrams",
+  "keywords": "paint by number,custom paint by number,photo to painting,acrylic paint"
+}

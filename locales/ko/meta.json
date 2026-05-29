@@ -1,0 +1,9 @@
+{
+  "title": "PaintKit | 페인트 바이 넘버 도안 생성기",
+  "titleTemplate": "%s | PaintKit",
+  "description": "내 사진을 페인트 바이 넘버 도안으로 변환. 아크릴 물감 색상 자동 매핑, A4/A3/액자 규격 PDF 출력. 브라우저에서 바로 실행, 이미지 서버 전송 없음.",
+  "ogTitle": "내 사진으로 페인트 바이 넘버 도안 만들기 — PaintKit",
+  "ogDescription": "사진 업로드 → 자동 도안 생성 → PDF 출력. 무료, 브라우저 처리.",
+  "ogImageAlt": "PaintKit — 사진을 페인트 바이 넘버 도안으로 변환",
+  "keywords": "페인트 바이 넘버,명화 그리기,번호 채색 도안,DIY 그림,아크릴 물감"
+}

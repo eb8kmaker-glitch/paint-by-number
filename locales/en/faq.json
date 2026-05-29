@@ -1,0 +1,26 @@
+{
+  "title": "Frequently Asked Questions",
+  "titleEn": "FAQ",
+  "items": [
+    {
+      "question": "Is PaintKit free to use?",
+      "answer": "PaintKit is completely free. Upload a photo and your browser automatically generates a numbered paint diagram. No images are sent to any server."
+    },
+    {
+      "question": "What output sizes are supported?",
+      "answer": "A5, A4, and A3 print sizes are supported, along with Korean canvas frame sizes (F4–F50). Export as a 300dpi high-resolution PDF in any supported size."
+    },
+    {
+      "question": "How many colors can I use?",
+      "answer": "Choose from 8 to 48 colors. We recommend 24 colors for beginners, 36 for intermediate, and 48 for advanced users."
+    },
+    {
+      "question": "What is Color Guide mode?",
+      "answer": "Color Guide mode lightly tints each region with its assigned paint color before you paint. Great for beginners who want a visual reference while working."
+    },
+    {
+      "question": "Is my photo private?",
+      "answer": "Yes. Your photo never leaves your device. All processing happens entirely in your browser."
+    }
+  ]
+}

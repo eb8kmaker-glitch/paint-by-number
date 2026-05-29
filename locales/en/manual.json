@@ -1,0 +1,58 @@
+{
+  "title": "Settings Guide",
+  "subtitle": "How to configure PaintKit for your desired result",
+  "sections": [
+    {
+      "title": "Color Count",
+      "content": "Controls diagram complexity.",
+      "options": [
+        { "label": "24 colors (Beginner)", "effect": "Large, simple regions — fast to paint, great for first-timers" },
+        { "label": "36 colors (Intermediate)", "effect": "Moderate detail, realistic representation" },
+        { "label": "48 colors (Advanced)", "effect": "Fine region division, closest to the original photo" }
+      ]
+    },
+    {
+      "title": "Detail Level",
+      "content": "Controls how finely regions are split.",
+      "options": [
+        { "label": "Low", "effect": "Large regions, fast painting, abstract feel" },
+        { "label": "Medium", "effect": "Balanced region size, general-purpose diagram" },
+        { "label": "High", "effect": "Small regions included, detailed work, best for high-res photos" }
+      ]
+    },
+    {
+      "title": "Canvas Size",
+      "content": "Choose based on how you plan to print.",
+      "options": [
+        { "label": "A5", "effect": "Portable, small print, great for practice" },
+        { "label": "A4", "effect": "Standard home printer size, most versatile" },
+        { "label": "A3", "effect": "Large detailed work" },
+        { "label": "Frame sizes (F4–F50)", "effect": "For printing directly onto canvas frames" }
+      ]
+    },
+    {
+      "title": "Color Guide",
+      "content": "Lightly tints regions with their assigned color.",
+      "options": [
+        { "label": "Outline Only", "effect": "Traditional diagram style, for experienced painters" },
+        { "label": "With Color", "effect": "Each region shows its color faintly — recommended for beginners" }
+      ]
+    },
+    {
+      "title": "Style",
+      "content": "Controls outline fineness.",
+      "options": [
+        { "label": "Clean", "effect": "Simple, broad regions — good for quick painting" },
+        { "label": "Detailed", "effect": "More regions and finer lines — good for realistic results" }
+      ]
+    },
+    {
+      "title": "Fit Mode",
+      "content": "How to handle aspect ratio differences between photo and canvas.",
+      "options": [
+        { "label": "Fit", "effect": "Entire image fits within canvas, may leave empty margins" },
+        { "label": "Fill", "effect": "Canvas fully covered, may crop edges. Adjust with crop preview." }
+      ]
+    }
+  ]
+}
