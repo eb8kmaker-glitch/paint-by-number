@@ -106,8 +106,11 @@ function getLabelFontSize(
   return LABEL_PX.normal;
 }
 
-// Median filter passes after K-means (smooths cluster-map boundaries)
-const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 4, medium: 2, high: 1 };
+// Median filter passes after K-means — reduced to preserve distinct region boundaries
+const MEDIAN_PASSES: Record<DetailLevel, number> = { low: 2, medium: 1, high: 0 };
+
+// K-means iterations per detail level — more iterations = better cluster separation
+const KMEANS_ITER: Record<DetailLevel, number> = { low: 20, medium: 30, high: 50 };
 
 // Outline gray level: clean = light gray, detailed = slightly darker
 const OUTLINE_GRAY: Record<Style, number> = { clean: 170, detailed: 120 };
@@ -227,7 +230,7 @@ export async function generateDiagram(
     ? Math.min(settings.colorCount, 16)
     : settings.colorCount;
 
-  const { centers } = kMeans(sampled, K, 25);
+  const { centers } = kMeans(sampled, K, KMEANS_ITER[settings.detailLevel]);
   onProgress?.(42); await tick();
 
   // ── 5. Assign every pixel to nearest cluster ──────────────────────────────

@@ -323,9 +323,9 @@ export function suggestColorCount(pixels: Pixels, W: number, H: number): number 
   }
   const spread = Math.sqrt(varTotal / count);
 
-  if (spread > 40) return 32;
-  if (spread > 25) return 24;
-  if (spread > 12) return 18;
-  return 14;
+  if (spread > 40) return 48;
+  if (spread > 25) return 36;
+  if (spread > 12) return 24;
+  return 16;
 }
 

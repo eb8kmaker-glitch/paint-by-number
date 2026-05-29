@@ -134,7 +134,7 @@ function getQualityState(
   detailLevel: DetailLevel,
 ): QualityState {
   if (imagePixels < 500_000) return 'warn';
-  if (imagePixels >= 2_000_000 && colorCount >= 24 && detailLevel === 'high') return 'good';
+  if (imagePixels >= 2_000_000 && colorCount >= 36 && detailLevel === 'high') return 'good';
   return 'suggest';
 }
 
@@ -214,7 +214,7 @@ export default function SettingsPanel({
   };
 
   const applyOptimal = () => {
-    onChange({ ...settings, colorCount: 30, detailLevel: 'high', style: 'detailed' });
+    onChange({ ...settings, colorCount: 36, detailLevel: 'high', style: 'detailed' });
   };
 
   return (
@@ -233,14 +233,17 @@ export default function SettingsPanel({
         </div>
         <input
           type="range"
-          min={8} max={40} step={1}
+          min={8} max={48} step={1}
           value={settings.colorCount}
           onChange={e => set('colorCount', Number(e.target.value))}
           className="w-full h-2 rounded-full appearance-none cursor-pointer"
           style={{ background: '#DDD0BC' }}
         />
-        <div className="flex justify-between mt-0.5" style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>
-          <span>8</span><span>40</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', marginTop: '3px', fontSize: '0.6rem', color: 'var(--color-muted)' }}>
+          <span>8<br/><span style={{opacity:0.65}}>입문</span></span>
+          <span style={{textAlign:'center'}}>24<br/><span style={{opacity:0.65}}>기본</span></span>
+          <span style={{textAlign:'center'}}>36<br/><span style={{opacity:0.65}}>중급</span></span>
+          <span style={{textAlign:'right'}}>48<br/><span style={{opacity:0.65}}>고급</span></span>
         </div>
 
         {/* Color count suggestion badge */}
