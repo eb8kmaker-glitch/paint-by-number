@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "home": "Home",
+    "manual": "Guide",
+    "generate": "Generate"
+  },
+  "footer": {
+    "privacy": "All processing runs in your browser — images are never sent to a server",
+    "copyright": "© 2025 PaintKit"
+  },
+  "steps": {
+    "upload": "Upload",
+    "settings": "Settings",
+    "generate": "Generate",
+    "export": "Export"
+  },
+  "actions": {
+    "nextStep": "Next Step",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "savePng": "Save PNG",
+    "exportPdf": "Export PDF",
+    "exportingPdf": "Generating PDF...",
+    "applyOptimal": "Apply Optimal Settings",
+    "apply": "Apply"
+  }
+}

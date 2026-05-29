@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "home": "홈",
+    "manual": "가이드",
+    "generate": "도안 생성"
+  },
+  "footer": {
+    "privacy": "모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다",
+    "copyright": "© 2025 PaintKit"
+  },
+  "steps": {
+    "upload": "업로드",
+    "settings": "설정",
+    "generate": "생성",
+    "export": "내보내기"
+  },
+  "actions": {
+    "nextStep": "다음 단계로",
+    "generate": "생성하기",
+    "generating": "생성 중...",
+    "savePng": "PNG 저장",
+    "exportPdf": "PDF 내보내기",
+    "exportingPdf": "PDF 생성 중...",
+    "applyOptimal": "최적 설정 적용",
+    "apply": "적용"
+  }
+}
