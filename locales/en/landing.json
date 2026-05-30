@@ -1,0 +1,27 @@
+{
+  "hero": {
+    "heading": "Turn Your Photo into a Painting Diagram",
+    "subheading": "Upload your photo — get a professional numbered painting diagram.",
+    "subheadingEn": "사진을 업로드하면 번호가 표시된 채색 도안으로 변환해 드립니다.",
+    "nextStep": "Next Step",
+    "nextStepEn": "다음 단계로"
+  },
+  "features": [
+    {
+      "titleKo": "Client-Side Only",
+      "titleEn": "Client-Side Only",
+      "descKo": "Images never leave your device"
+    },
+    {
+      "titleKo": "24–48 Acrylic Colors",
+      "titleEn": "24–48 Acrylic Colors",
+      "descKo": "24 to 48 acrylic paint colors"
+    },
+    {
+      "titleKo": "PNG & PDF Export",
+      "titleEn": "PNG & PDF Export",
+      "descKo": "A4 print-ready PDF layout included"
+    }
+  ],
+  "appDescription": "Free browser app to convert photos into paint-by-number diagrams"
+}

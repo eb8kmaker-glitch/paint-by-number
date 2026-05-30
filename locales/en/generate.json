@@ -1,0 +1,48 @@
+{
+  "pageTitle": "Generate Diagram",
+  "header": {
+    "homeTitle": "Home",
+    "homeTitleEn": "홈으로",
+    "appName": "Paint by Number",
+    "appSubtitle": "Paint by Number Diagram Generator"
+  },
+  "settings": {
+    "title": "Settings",
+    "titleEn": "설정",
+    "originalImage": "Original",
+    "originalImageEn": "원본 이미지"
+  },
+  "canvas": {
+    "placeholder": "Your diagram will appear here",
+    "title": "My Artwork",
+    "titleEn": "내 작품"
+  },
+  "progress": {
+    "analyzing": "Analyzing image...",
+    "clustering": "Running K-means color clustering...",
+    "assigning": "Assigning pixels...",
+    "segmenting": "Segmenting regions...",
+    "rendering": "Rendering diagram...",
+    "finishing": "Finishing up..."
+  },
+  "export": {
+    "title": "Export",
+    "titleEn": "내보내기"
+  },
+  "legend": {
+    "title": "Color Legend",
+    "titleEn": "색상 범례",
+    "empty": "Color legend appears after generation",
+    "emptyEn": "생성 후 색상 범례가 표시됩니다",
+    "symbol": "Sym",
+    "color": "Color",
+    "paint": "Paint",
+    "regions": "Regions"
+  },
+  "errors": {
+    "generateFailed": "Diagram generation failed. Please try again."
+  },
+  "footer": {
+    "privacy": "All processing runs in your browser — images are never sent to a server"
+  }
+}
