@@ -307,7 +307,7 @@ export default function HomePage() {
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-muted)' }}>
             모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다
           </p>
-          <p className="text-xs" style={{ color: 'var(--color-muted)', opacity: 0.6 }}>© 2025 PaintKit</p>
+          <p className="text-xs" style={{ color: 'var(--color-muted)', opacity: 0.6 }}>© 2026 PaintKit</p>
         </div>
       </footer>
     </div>
