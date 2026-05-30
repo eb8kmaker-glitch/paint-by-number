@@ -5,5 +5,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: 'https://paintkit.app',         priority: 1.0, changeFrequency: 'weekly'  },
     { url: 'https://paintkit.app/en',       priority: 0.9, changeFrequency: 'weekly'  },
     { url: 'https://paintkit.app/generate', priority: 0.8, changeFrequency: 'monthly' },
+    { url: 'https://paintkit.app/manual',   priority: 0.7, changeFrequency: 'monthly' },
   ];
 }

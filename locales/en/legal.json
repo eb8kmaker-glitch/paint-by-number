@@ -1,0 +1,46 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "effectiveDate": "January 1, 2025",
+    "sections": [
+      {
+        "title": "Information We Collect",
+        "content": "PaintKit does not collect personal information. Uploaded images are never sent to a server — all processing happens entirely in your browser."
+      },
+      {
+        "title": "Image Processing",
+        "content": "Uploaded images are temporarily stored in sessionStorage and are automatically deleted when you close the browser tab. They are never stored on servers or shared with third parties."
+      },
+      {
+        "title": "Cookies and Analytics",
+        "content": "PaintKit currently does not use cookies or user analytics tools."
+      },
+      {
+        "title": "Advertising",
+        "content": "In the future, Google AdSense or Kakao AdFit ads may be displayed. These ad services follow their own cookie policies."
+      },
+      {
+        "title": "Contact",
+        "content": "For inquiries regarding privacy, please contact us through the service's support channel."
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "effectiveDate": "January 1, 2025",
+    "sections": [
+      {
+        "title": "Use of Service",
+        "content": "PaintKit may be used freely for personal and commercial purposes. Copyright of generated diagrams belongs to the copyright holder of the original image."
+      },
+      {
+        "title": "Prohibited Use",
+        "content": "Use of images that infringe third-party copyrights, illegal content, or service abuse is prohibited."
+      },
+      {
+        "title": "Disclaimer",
+        "content": "PaintKit makes no warranty regarding the quality of generated diagrams. The service is provided 'as is'."
+      }
+    ]
+  }
+}

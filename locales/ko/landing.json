@@ -1,0 +1,27 @@
+{
+  "hero": {
+    "heading": "사진을 명화 도안으로",
+    "subheading": "사진을 업로드하면 번호가 표시된 채색 도안으로 변환해 드립니다.",
+    "subheadingEn": "Upload your photo — get a professional numbered painting diagram.",
+    "nextStep": "다음 단계로",
+    "nextStepEn": "Next Step"
+  },
+  "features": [
+    {
+      "titleKo": "클라이언트 처리",
+      "titleEn": "Client-Side Only",
+      "descKo": "이미지가 서버로 전송되지 않습니다"
+    },
+    {
+      "titleKo": "전문 물감 색상",
+      "titleEn": "24–48 Acrylic Colors",
+      "descKo": "24~48가지 아크릴 물감 색상"
+    },
+    {
+      "titleKo": "PNG / PDF 출력",
+      "titleEn": "PNG & PDF Export",
+      "descKo": "인쇄용 A4 PDF 레이아웃 포함"
+    }
+  ],
+  "appDescription": "사진을 페인트 바이 넘버 도안으로 변환하는 무료 브라우저 앱"
+}

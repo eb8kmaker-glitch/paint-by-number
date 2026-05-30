@@ -1,0 +1,48 @@
+{
+  "pageTitle": "도안 생성",
+  "header": {
+    "homeTitle": "홈으로",
+    "homeTitleEn": "Home",
+    "appName": "Paint by Number",
+    "appSubtitle": "페인트 바이 넘버 도안 생성기"
+  },
+  "settings": {
+    "title": "설정",
+    "titleEn": "Settings",
+    "originalImage": "원본 이미지",
+    "originalImageEn": "Original"
+  },
+  "canvas": {
+    "placeholder": "도안이 여기에 표시됩니다",
+    "title": "내 작품",
+    "titleEn": "My Artwork"
+  },
+  "progress": {
+    "analyzing": "이미지 분석 중...",
+    "clustering": "K-means 색상 클러스터링 중...",
+    "assigning": "픽셀 할당 중...",
+    "segmenting": "영역 분석 중...",
+    "rendering": "도안 렌더링 중...",
+    "finishing": "마무리 중..."
+  },
+  "export": {
+    "title": "내보내기",
+    "titleEn": "Export"
+  },
+  "legend": {
+    "title": "색상 범례",
+    "titleEn": "Color Legend",
+    "empty": "생성 후 색상 범례가 표시됩니다",
+    "emptyEn": "Color legend appears after generation",
+    "symbol": "기호",
+    "color": "색상",
+    "paint": "물감",
+    "regions": "구역"
+  },
+  "errors": {
+    "generateFailed": "도안 생성 중 오류가 발생했습니다. 다시 시도해 주세요."
+  },
+  "footer": {
+    "privacy": "모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다"
+  }
+}
