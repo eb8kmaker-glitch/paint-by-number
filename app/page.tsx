@@ -253,7 +253,7 @@ export default function HomePage() {
         </section>
 
         {/* ── Ad: Multiplex ────────────────────────────────── */}
-        <AdUnit position="multiplex" className="my-6" />
+        <AdUnit position="display" className="my-6" />
 
         {/* ── FAQ ──────────────────────────────────────────── */}
         <section className="py-10 border-t" style={{ borderColor: '#EDE5D8' }}>

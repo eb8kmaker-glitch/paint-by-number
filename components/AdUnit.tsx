@@ -1,23 +1,37 @@
 'use client';
+import Script from 'next/script';
+import AdFit from './AdFit';
 
-export type AdPosition = 'in-article' | 'multiplex' | 'display';
+export type AdPosition = 'in-article' | 'display';
 
 interface AdUnitProps {
   position: AdPosition;
-  adsenseSlot?: string;
-  adFitUnit?: string;
   className?: string;
 }
 
-// Placeholder — replace with real ad code after AdSense/AdFit approval
+// AdFit unit IDs
+const ADFIT_UNITS: Record<AdPosition, { unit: string; width: number; height: number }> = {
+  'in-article': { unit: 'DAN-vNGt8FIEDKVCjuqY', width: 320, height: 100 },
+  'display':    { unit: 'DAN-YYSQB5cbm3kGoFp9', width: 320, height: 50  },
+};
+
 export default function AdUnit({ position, className }: AdUnitProps) {
-  if (!process.env.NEXT_PUBLIC_ADS_ENABLED) return null;
+  const ad = ADFIT_UNITS[position];
+  if (!ad) return null;
+
   return (
     <div
       className={className}
-      data-ad-position={position}
-      style={{ minHeight: position === 'multiplex' ? 280 : 90 }}
-      aria-hidden="true"
-    />
+      style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden' }}
+      aria-label="광고"
+    >
+      {/* KAS loader — loaded once, strategy="lazyOnload" */}
+      <Script
+        id="adfit-kas"
+        src="//t1.kakaocdn.net/kas/static/ba.min.js"
+        strategy="lazyOnload"
+      />
+      <AdFit adUnit={ad.unit} width={ad.width} height={ad.height} />
+    </div>
   );
 }
