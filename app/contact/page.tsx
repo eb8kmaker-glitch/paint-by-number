@@ -53,7 +53,7 @@ export default function ContactPage() {
         <p className="text-sm mb-8" style={{ color: 'var(--color-muted)', lineHeight: 1.7 }}>
           버그 신고, 기능 제안, 피드백 등 무엇이든 보내주세요.
           <br />
-          <span style={{ opacity: 0.7 }}>Bug reports, feature requests, or any feedback — we'd love to hear from you.</span>
+          <span style={{ opacity: 0.7 }}>Bug reports, feature requests, or any feedback — we&apos;d love to hear from you.</span>
         </p>
 
         <ContactForm />
