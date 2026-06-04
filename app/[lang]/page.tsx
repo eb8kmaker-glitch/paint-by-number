@@ -263,11 +263,8 @@ export default function LangHomePage() {
               style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-ink)' }}>
               {hero.h1}
             </h1>
-            <p className="text-base max-w-md mx-auto mb-1" style={{ color: 'var(--color-muted)' }}>
+            <p className="text-base max-w-md mx-auto" style={{ color: 'var(--color-muted)' }}>
               {hero.sub}
-            </p>
-            <p className="text-sm" style={{ color: 'var(--color-muted)', opacity: 0.7 }}>
-              {hero.subAlt}
             </p>
           </div>
 
