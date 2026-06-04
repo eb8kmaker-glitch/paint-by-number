@@ -21,6 +21,26 @@
     {
       "question": "Is my photo private?",
       "answer": "Yes. Your photo never leaves your device. All processing happens entirely in your browser."
+    },
+    {
+      "question": "What image formats are supported?",
+      "answer": "JPEG, PNG, and WebP images are supported. Higher-resolution images produce more detailed patterns."
+    },
+    {
+      "question": "Can I use PaintKit on mobile?",
+      "answer": "Yes, PaintKit works on smartphones and tablets. For best performance, a desktop or laptop is recommended since pattern generation requires significant processing."
+    },
+    {
+      "question": "How do I print the pattern?",
+      "answer": "Click the 'Export PDF' button to download a 300dpi high-resolution PDF, then print it with your printer. A4 size works with most home printers."
+    },
+    {
+      "question": "What acrylic paint colors should I buy?",
+      "answer": "PaintKit is optimized for standard 24–48 color acrylic paint sets. Purchase a set that matches your chosen color count setting."
+    },
+    {
+      "question": "Can I edit the pattern after generating?",
+      "answer": "You can change settings like color count, detail level, or style and regenerate the pattern instantly. Manual editing of individual regions is not currently supported."
     }
   ]
 }

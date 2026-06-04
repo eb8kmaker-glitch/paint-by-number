@@ -2,7 +2,10 @@
   "nav": {
     "home": "Home",
     "manual": "Guide",
-    "generate": "Generate"
+    "generate": "Generate",
+    "guide": "Guide",
+    "faq": "FAQ",
+    "language": "Language"
   },
   "footer": {
     "privacy": "All processing runs in your browser — images are never sent to a server",
@@ -23,5 +26,10 @@
     "exportingPdf": "Generating PDF...",
     "applyOptimal": "Apply Optimal Settings",
     "apply": "Apply"
+  },
+  "common": {
+    "viewFullGuide": "View Full Guide →",
+    "viewFullFaq": "View All FAQs →",
+    "contact": "Contact"
   }
 }

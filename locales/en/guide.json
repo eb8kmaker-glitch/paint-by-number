@@ -1,0 +1,80 @@
+{
+  "title": "Paint by Number Guide",
+  "titleFull": "Paint by Number Guide — How to Use PaintKit",
+  "metaDescription": "Step-by-step guide to creating your paint by number pattern with PaintKit. Learn how to choose colors, canvas size, detail level, and export your design.",
+  "cta": "Start Creating Now →",
+  "sections": {
+    "gettingStarted": {
+      "title": "Getting Started",
+      "content": "Create your paint by number pattern in 4 simple steps:",
+      "steps": [
+        { "step": "1. Upload", "desc": "Choose a photo from your device. High-resolution images produce the best results." },
+        { "step": "2. Settings", "desc": "Configure color count, canvas size, detail level, and style." },
+        { "step": "3. Generate", "desc": "PaintKit converts your photo into a numbered pattern — entirely in your browser." },
+        { "step": "4. Export", "desc": "Download your pattern as a high-resolution PNG or print-ready A4/A3 PDF." }
+      ]
+    },
+    "colorCount": {
+      "title": "Color Count",
+      "content": "Controls diagram complexity. More colors = more realistic, but harder to paint.",
+      "options": [
+        { "label": "24 colors (Beginner)", "effect": "Large, simple regions — fast to paint, great for first-timers" },
+        { "label": "36 colors (Intermediate)", "effect": "Moderate detail, realistic representation" },
+        { "label": "48 colors (Advanced)", "effect": "Fine region division, closest to the original photo" }
+      ]
+    },
+    "detailLevel": {
+      "title": "Detail Level",
+      "content": "Controls how finely regions are split.",
+      "options": [
+        { "label": "Low", "effect": "Large regions, fast painting, abstract feel" },
+        { "label": "Medium", "effect": "Balanced region size, general-purpose diagram" },
+        { "label": "High", "effect": "Small regions included, detailed work, best for high-res photos" }
+      ]
+    },
+    "canvasSize": {
+      "title": "Canvas Size",
+      "content": "Choose based on how you plan to print.",
+      "options": [
+        { "label": "A5", "effect": "Portable, small print, great for practice" },
+        { "label": "A4", "effect": "Standard home printer size, most versatile" },
+        { "label": "A3", "effect": "Large detailed work" },
+        { "label": "Frame sizes (F4–F50)", "effect": "For printing directly onto canvas frames" }
+      ]
+    },
+    "colorGuide": {
+      "title": "Color Guide Mode",
+      "content": "Lightly tints each region with its assigned paint color.",
+      "options": [
+        { "label": "Outline Only", "effect": "Traditional diagram style, for experienced painters" },
+        { "label": "With Color", "effect": "Each region shows its color faintly — recommended for beginners" }
+      ]
+    },
+    "style": {
+      "title": "Style",
+      "content": "Controls outline fineness.",
+      "options": [
+        { "label": "Clean", "effect": "Simple, broad regions — good for quick painting" },
+        { "label": "Detailed", "effect": "More regions and finer lines — good for realistic results" }
+      ]
+    },
+    "fitMode": {
+      "title": "Fit Mode",
+      "content": "How to handle aspect ratio differences between photo and canvas.",
+      "options": [
+        { "label": "Fit", "effect": "Entire image fits within canvas, may leave empty margins" },
+        { "label": "Fill", "effect": "Canvas fully covered, may crop edges. Adjust with crop preview." }
+      ]
+    },
+    "tips": {
+      "title": "Tips for Best Results",
+      "items": [
+        "Use high-resolution images (1000px+) for the best detail.",
+        "For portraits and pets, use 48 colors + High detail level.",
+        "For simple landscapes or illustrations, use 24 colors + Low detail level.",
+        "A4 is the most versatile print size — works with most home printers.",
+        "Use Color Guide mode if you are a beginner."
+      ]
+    }
+  }
+}

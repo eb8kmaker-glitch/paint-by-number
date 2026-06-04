@@ -1,39 +1,113 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Script from 'next/script';
 import Link from 'next/link';
 import UploadZone from '@/components/UploadZone';
 import AdUnit from '@/components/AdUnit';
-import faqData from '@/locales/ko/faq.json';
-import manualData from '@/locales/ko/manual.json';
 
-const STEPS = [
-  { ko: '업로드',   en: 'Upload'   },
-  { ko: '설정',     en: 'Settings' },
-  { ko: '생성',     en: 'Generate' },
-  { ko: '내보내기', en: 'Export'   },
-];
+import koFaq from '@/locales/ko/faq.json';
+import enFaq from '@/locales/en/faq.json';
+import jaFaq from '@/locales/ja/faq.json';
+import koManual from '@/locales/ko/manual.json';
+import enManual from '@/locales/en/manual.json';
+import jaManual from '@/locales/ja/manual.json';
 
-const FEATURES = [
-  {
-    dot: '#4A7C6B',
-    titleKo: '클라이언트 처리',
-    titleEn: 'Client-Side Only',
-    descKo:  '이미지가 서버로 전송되지 않습니다',
+type Lang = 'en' | 'ko' | 'ja';
+
+const HERO: Record<Lang, { h1: string; sub: string; subAlt: string }> = {
+  en: {
+    h1: 'Paint by Number Pattern Maker — Free & Custom',
+    sub: 'Upload your photo — get a professional numbered painting diagram.',
+    subAlt: '사진을 업로드하면 번호가 표시된 채색 도안으로 변환해 드립니다.',
   },
-  {
-    dot: '#C8A96E',
-    titleKo: '전문 물감 색상',
-    titleEn: '24–48 Acrylic Colors',
-    descKo:  '24~48가지 아크릴 물감 색상',
+  ko: {
+    h1: '사진을 페인트 바이 넘버 도안으로',
+    sub: '사진을 업로드하면 번호가 표시된 채색 도안으로 변환해 드립니다.',
+    subAlt: 'Upload your photo — get a professional numbered painting diagram.',
   },
-  {
-    dot: '#C4622D',
-    titleKo: 'PNG / PDF 출력',
-    titleEn: 'PNG & PDF Export',
-    descKo:  '인쇄용 A4 PDF 레이아웃 포함',
+  ja: {
+    h1: '写真をペイントバイナンバー図案に変換',
+    sub: '写真をアップロードするだけで、番号付きの塗り絵図案を自動生成します。',
+    subAlt: 'Upload your photo — get a professional numbered painting diagram.',
   },
+};
+
+const FEATURES: Record<Lang, { dot: string; title: string; titleSub: string; desc: string }[]> = {
+  en: [
+    { dot: '#4A7C6B', title: 'Client-Side Only', titleSub: '클라이언트 처리', desc: 'Images never leave your device' },
+    { dot: '#C8A96E', title: '24–48 Acrylic Colors', titleSub: '전문 물감 색상', desc: '24 to 48 acrylic paint colors' },
+    { dot: '#C4622D', title: 'PNG & PDF Export', titleSub: 'PNG / PDF 출력', desc: 'A4 print-ready PDF layout included' },
+  ],
+  ko: [
+    { dot: '#4A7C6B', title: '클라이언트 처리', titleSub: 'Client-Side Only', desc: '이미지가 서버로 전송되지 않습니다' },
+    { dot: '#C8A96E', title: '전문 물감 색상', titleSub: '24–48 Acrylic Colors', desc: '24~48가지 아크릴 물감 색상' },
+    { dot: '#C4622D', title: 'PNG / PDF 출력', titleSub: 'PNG & PDF Export', desc: '인쇄용 A4 PDF 레이아웃 포함' },
+  ],
+  ja: [
+    { dot: '#4A7C6B', title: 'ブラウザ内処理', titleSub: 'Client-Side Only', desc: '画像はサーバーに送信されません' },
+    { dot: '#C8A96E', title: '24〜48色のアクリル絵の具', titleSub: '24–48 Acrylic Colors', desc: '24〜48色のアクリル絵の具に対応' },
+    { dot: '#C4622D', title: 'PNG / PDF エクスポート', titleSub: 'PNG & PDF Export', desc: 'A4印刷対応PDFレイアウト含む' },
+  ],
+};
+
+const NAV_TEXT: Record<Lang, { guide: string; faq: string; nextStep: string; contact: string }> = {
+  en: { guide: 'Guide', faq: 'FAQ', nextStep: 'Next Step', contact: 'Contact' },
+  ko: { guide: '사용 가이드', faq: 'FAQ', nextStep: '다음 단계로', contact: '문의하기' },
+  ja: { guide: 'ガイド', faq: 'FAQ', nextStep: '次のステップ', contact: 'お問い合わせ' },
+};
+
+const SECTION_TEXT: Record<Lang, {
+  guideLink: string;
+  faqLink: string;
+  privacyNote: string;
+  copyright: string;
+}> = {
+  en: {
+    guideLink: 'View Full Guide →',
+    faqLink: 'View All FAQs →',
+    privacyNote: 'All processing runs in your browser — images are never sent to a server',
+    copyright: '© 2026 PaintKit',
+  },
+  ko: {
+    guideLink: '자세한 가이드 보기 →',
+    faqLink: '전체 FAQ 보기 →',
+    privacyNote: '모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다',
+    copyright: '© 2026 PaintKit',
+  },
+  ja: {
+    guideLink: '詳細ガイドを見る →',
+    faqLink: 'よくある質問をすべて見る →',
+    privacyNote: 'すべての処理はブラウザで実行されます — 画像はサーバーに送信されません',
+    copyright: '© 2026 PaintKit',
+  },
+};
+
+const STEPS: Record<Lang, { ko: string; en: string }[]> = {
+  en: [
+    { ko: 'Upload',   en: 'Upload'   },
+    { ko: 'Settings', en: 'Settings' },
+    { ko: 'Generate', en: 'Generate' },
+    { ko: 'Export',   en: 'Export'   },
+  ],
+  ko: [
+    { ko: '업로드',   en: 'Upload'   },
+    { ko: '설정',     en: 'Settings' },
+    { ko: '생성',     en: 'Generate' },
+    { ko: '내보내기', en: 'Export'   },
+  ],
+  ja: [
+    { ko: 'アップロード', en: 'Upload'   },
+    { ko: '設定',         en: 'Settings' },
+    { ko: '生成',         en: 'Generate' },
+    { ko: 'エクスポート', en: 'Export'   },
+  ],
+};
+
+const LANG_LABELS: { code: Lang; label: string }[] = [
+  { code: 'en', label: 'EN' },
+  { code: 'ko', label: '한국어' },
+  { code: 'ja', label: '日本語' },
 ];
 
 const sectionLabelStyle: React.CSSProperties = {
@@ -53,10 +127,22 @@ const headingStyle: React.CSSProperties = {
   marginBottom: '6px',
 };
 
-export default function HomePage() {
+export default function LangHomePage() {
   const router = useRouter();
+  const params = useParams();
+  const rawLang = (params?.lang as string) ?? 'en';
+  const lang: Lang = rawLang === 'ko' ? 'ko' : rawLang === 'ja' ? 'ja' : 'en';
+
   const [ready, setReady] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqData = lang === 'ko' ? koFaq : lang === 'ja' ? jaFaq : enFaq;
+  const manualData = lang === 'ko' ? koManual : lang === 'ja' ? jaManual : enManual;
+  const hero = HERO[lang];
+  const features = FEATURES[lang];
+  const nav = NAV_TEXT[lang];
+  const sec = SECTION_TEXT[lang];
+  const steps = STEPS[lang];
 
   const handleImageReady = (dataUrl: string) => {
     sessionStorage.setItem('uploadedImage', dataUrl);
@@ -73,37 +159,19 @@ export default function HomePage() {
     })),
   };
 
-  const appJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: 'PaintKit',
-    url: 'https://paintkit.app',
-    applicationCategory: 'UtilitiesApplication',
-    operatingSystem: 'Web Browser',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'KRW' },
-    isAccessibleForFree: true,
-    inLanguage: ['ko', 'en'],
-    description: '사진을 페인트 바이 넘버 도안으로 변환하는 무료 브라우저 앱',
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
       <Script
-        id="ld-faq"
+        id="ld-faq-lang"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <Script
-        id="ld-app"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(appJsonLd) }}
       />
 
       {/* ── Header ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 border-b backdrop-blur-md"
         style={{ borderColor: 'var(--color-frame)', background: 'rgba(248, 244, 238, 0.93)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Link href={`/${lang}`} className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-9 h-9 flex items-center justify-center flex-shrink-0"
               style={{ background: 'var(--color-frame-dark)', borderRadius: '3px' }}>
               <svg width="20" height="20" fill="none" stroke="#FDF6E3" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -117,25 +185,37 @@ export default function HomePage() {
                 PaintKit
               </p>
               <p className="text-xs leading-tight" style={{ color: 'var(--color-muted)' }}>
-                페인트 바이 넘버 도안 생성기
+                Paint by Number Generator
               </p>
             </div>
-          </div>
+          </Link>
+
           <nav className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-            <Link href="/ko/guide"
-              className="hidden sm:block text-xs font-medium px-2 py-1 hover:underline"
+            <Link href={`/${lang}/guide`}
+              className="hidden sm:block text-xs font-medium px-2 py-1 rounded hover:underline"
               style={{ color: 'var(--color-ink)' }}>
-              사용 가이드
+              {nav.guide}
             </Link>
-            <Link href="/ko/faq"
-              className="hidden sm:block text-xs font-medium px-2 py-1 hover:underline"
+            <Link href={`/${lang}/faq`}
+              className="hidden sm:block text-xs font-medium px-2 py-1 rounded hover:underline"
               style={{ color: 'var(--color-ink)' }}>
-              FAQ
+              {nav.faq}
             </Link>
-            <div className="flex items-center gap-0.5 text-xs">
-              <Link href="/ko" style={{ fontWeight: 700, color: 'var(--color-ink)', padding: '2px 6px' }}>한국어</Link>
-              <Link href="/en" style={{ fontWeight: 400, color: 'var(--color-muted)', padding: '2px 6px' }}>EN</Link>
-              <Link href="/ja" style={{ fontWeight: 400, color: 'var(--color-muted)', padding: '2px 6px' }}>日本語</Link>
+            <div className="flex items-center gap-0.5 text-xs" style={{ color: 'var(--color-muted)' }}>
+              {LANG_LABELS.map(({ code, label }) => (
+                <Link
+                  key={code}
+                  href={`/${code}`}
+                  className="px-1.5 py-0.5 rounded"
+                  style={{
+                    fontWeight: code === lang ? 700 : 400,
+                    color: code === lang ? 'var(--color-ink)' : 'var(--color-muted)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
           </nav>
         </div>
@@ -145,7 +225,7 @@ export default function HomePage() {
       <div className="border-b" style={{ background: '#FDFAF5', borderColor: '#DDD0BC' }}>
         <div className="max-w-5xl mx-auto px-4 py-3">
           <div className="flex items-center">
-            {STEPS.map((step, i) => (
+            {steps.map((step, i) => (
               <div key={i} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-0.5">
                   <div
@@ -163,7 +243,7 @@ export default function HomePage() {
                     {step.ko}
                   </span>
                 </div>
-                {i < STEPS.length - 1 && (
+                {i < steps.length - 1 && (
                   <div className="flex-1 h-px mx-2" style={{ background: '#D4C4AE' }} />
                 )}
               </div>
@@ -180,13 +260,13 @@ export default function HomePage() {
           <div className="text-center mb-10">
             <h1 className="text-4xl font-semibold italic mb-3"
               style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-ink)' }}>
-              사진을 명화 도안으로
+              {hero.h1}
             </h1>
             <p className="text-base max-w-md mx-auto mb-1" style={{ color: 'var(--color-muted)' }}>
-              사진을 업로드하면 번호가 표시된 채색 도안으로 변환해 드립니다.
+              {hero.sub}
             </p>
             <p className="text-sm" style={{ color: 'var(--color-muted)', opacity: 0.7 }}>
-              Upload your photo — get a professional numbered painting diagram.
+              {hero.subAlt}
             </p>
           </div>
 
@@ -205,25 +285,24 @@ export default function HomePage() {
                 onClick={() => router.push('/generate')}
                 className="btn-gallery btn-gold mt-5 w-full py-3.5 text-base active:scale-[0.98]"
               >
-                다음 단계로
+                {nav.nextStep}
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                <span className="text-sm font-normal opacity-75">/ Next Step</span>
               </button>
             )}
           </div>
 
           {/* Feature badges */}
           <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-            {FEATURES.map((f, i) => (
+            {features.map((f, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3"
                 style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-frame)', borderRadius: '3px' }}>
                 <div className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5" style={{ background: f.dot }} />
                 <div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>{f.titleKo}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{f.titleEn}</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.85 }}>{f.descKo}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>{f.title}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{f.titleSub}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.85 }}>{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -233,7 +312,7 @@ export default function HomePage() {
         {/* ── Ad: In-Article ───────────────────────────────── */}
         <AdUnit position="in-article" className="my-6" />
 
-        {/* ── Settings Guide (Manual) ──────────────────────── */}
+        {/* ── Settings Guide ───────────────────────────────── */}
         <section className="py-10 border-t" style={{ borderColor: '#EDE5D8' }}>
           <div className="max-w-3xl mx-auto">
             <p style={sectionLabelStyle}>{manualData.title}</p>
@@ -269,17 +348,18 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+
             <div className="mt-6 text-right">
-              <Link href="/ko/guide"
+              <Link href={`/${lang}/guide`}
                 className="text-sm font-medium hover:underline"
                 style={{ color: 'var(--color-frame-dark)' }}>
-                자세한 가이드 보기 →
+                {sec.guideLink}
               </Link>
             </div>
           </div>
         </section>
 
-        {/* ── Ad: Multiplex ────────────────────────────────── */}
+        {/* ── Ad: Display ──────────────────────────────────── */}
         <AdUnit position="display" className="my-6" />
 
         {/* ── FAQ ──────────────────────────────────────────── */}
@@ -294,8 +374,8 @@ export default function HomePage() {
             </h2>
 
             <div className="flex flex-col mt-6" style={{ gap: '1px', border: '1px solid #DDD0BC', borderRadius: '3px', overflow: 'hidden' }}>
-              {faqData.items.map((item, i) => (
-                <div key={i} style={{ background: '#FDFAF5', borderBottom: i < faqData.items.length - 1 ? '1px solid #EDE5D8' : 'none' }}>
+              {faqData.items.slice(0, 5).map((item, i) => (
+                <div key={i} style={{ background: '#FDFAF5', borderBottom: i < 4 ? '1px solid #EDE5D8' : 'none' }}>
                   <button
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
                     className="w-full flex items-center justify-between gap-3 text-left px-5 py-4"
@@ -319,11 +399,12 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+
             <div className="mt-4 text-right">
-              <Link href="/ko/faq"
+              <Link href={`/${lang}/faq`}
                 className="text-sm font-medium hover:underline"
                 style={{ color: 'var(--color-frame-dark)' }}>
-                전체 FAQ 보기 →
+                {sec.faqLink}
               </Link>
             </div>
           </div>
@@ -339,13 +420,13 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs italic text-center sm:text-left"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-muted)' }}>
-            모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다
+            {sec.privacyNote}
           </p>
           <div className="flex items-center gap-4">
             <Link href="/contact" className="text-xs hover:underline" style={{ color: 'var(--color-muted)', opacity: 0.7 }}>
-              문의하기 / Contact
+              {nav.contact}
             </Link>
-            <p className="text-xs" style={{ color: 'var(--color-muted)', opacity: 0.6 }}>© 2026 PaintKit</p>
+            <p className="text-xs" style={{ color: 'var(--color-muted)', opacity: 0.6 }}>{sec.copyright}</p>
           </div>
         </div>
       </footer>
