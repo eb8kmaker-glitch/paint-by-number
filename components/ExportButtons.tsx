@@ -3,16 +3,33 @@ import { useState } from 'react';
 import { DiagramResult, CanvasSize, DiagramSettings } from '@/lib/diagramRenderer';
 import { exportToPng, exportToPdf } from '@/lib/pdfExport';
 
+type Lang = 'en' | 'ko' | 'ja';
+
 interface Props {
   result:          DiagramResult | null;
   canvasSize:      CanvasSize;
   settings:        DiagramSettings;
   originalImageDataUrl?: string;
+  lang?:           Lang;
 }
 
-export default function ExportButtons({ result, canvasSize, settings, originalImageDataUrl }: Props) {
+const EXPORT_TEXT: Record<Lang, {
+  savePng:      string;
+  exportPdf:    string;
+  generating:   string;
+  pdfError:     string;
+  pdfFail:      string;
+}> = {
+  ko: { savePng: 'PNG 저장', exportPdf: 'PDF 내보내기', generating: 'PDF 생성 중...', pdfError: 'PDF 오류:', pdfFail: 'PDF 생성 실패' },
+  en: { savePng: 'Save PNG', exportPdf: 'Export PDF',   generating: 'Generating PDF...', pdfError: 'PDF error:', pdfFail: 'PDF generation failed' },
+  ja: { savePng: 'PNG 保存', exportPdf: 'PDF 出力',     generating: 'PDFを生成中...', pdfError: 'PDFエラー:', pdfFail: 'PDF生成失敗' },
+};
+
+export default function ExportButtons({ result, canvasSize, settings, originalImageDataUrl, lang = 'ko' }: Props) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError,   setPdfError]   = useState('');
+
+  const t = EXPORT_TEXT[lang];
 
   const handlePng = () => {
     if (!result) return;
@@ -38,7 +55,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
       );
     } catch (err) {
       console.error('PDF export failed', err);
-      setPdfError(err instanceof Error ? err.message : 'PDF 생성 실패');
+      setPdfError(err instanceof Error ? err.message : t.pdfFail);
     } finally {
       setPdfLoading(false);
     }
@@ -50,7 +67,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
     <div className="flex flex-col gap-3">
     {pdfError && (
       <div style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fdf0ec', border: '1px solid #e08070', borderRadius: 3, padding: '6px 10px' }}>
-        PDF 오류: {pdfError}
+        {t.pdfError} {pdfError}
       </div>
     )}
     <div className="flex flex-col sm:flex-row gap-3">
@@ -64,8 +81,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
-        PNG 저장
-        <span style={{ fontSize: '0.7rem', fontWeight: 400, opacity: 0.65 }}>/ Save PNG</span>
+        {t.savePng}
       </button>
 
       {/* PDF — sage green */}
@@ -80,7 +96,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
-            PDF 생성 중...
+            {t.generating}
           </>
         ) : (
           <>
@@ -88,8 +104,7 @@ export default function ExportButtons({ result, canvasSize, settings, originalIm
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            PDF 내보내기
-            <span style={{ fontSize: '0.7rem', fontWeight: 400, opacity: 0.75 }}>/ Export PDF</span>
+            {t.exportPdf}
           </>
         )}
       </button>
