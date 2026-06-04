@@ -299,6 +299,7 @@ export default function GeneratePage() {
                 progress={progress}
                 placeholder={imageDataUrl ?? undefined}
                 imageAspectRatio={imageAspectRatio}
+                lang={lang}
               />
             </div>
 
@@ -335,6 +336,7 @@ export default function GeneratePage() {
                   canvasSize={settings.canvasSize}
                   settings={settings}
                   originalImageDataUrl={imageDataUrl ?? undefined}
+                  lang={lang}
                 />
               </div>
             )}
@@ -357,6 +359,7 @@ export default function GeneratePage() {
                 colorMap={result.colorMap}
                 labeledRegionCount={result.labeledRegionCount}
                 totalRegionCount={result.totalRegionCount}
+                lang={lang}
               />
             ) : (
               <div className="flex flex-col items-center gap-3 py-10"

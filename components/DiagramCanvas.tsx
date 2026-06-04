@@ -1,15 +1,60 @@
 'use client';
 import { useEffect, useRef } from 'react';
 
+type Lang = 'en' | 'ko' | 'ja';
+
+const CANVAS_TEXT: Record<Lang, {
+  artworkLabel: string;
+  generating:   string;
+  generatingSub: string;
+  progress: (pct: number) => string;
+}> = {
+  ko: {
+    artworkLabel: '내 작품',
+    generating: '도안 생성 중...',
+    generatingSub: 'Generating diagram',
+    progress: (pct) =>
+      pct < 15 ? '이미지 분석 중...' :
+      pct < 45 ? 'K-means 색상 클러스터링 중...' :
+      pct < 65 ? '픽셀 할당 중...' :
+      pct < 80 ? '영역 분석 중...' :
+      pct < 95 ? '도안 렌더링 중...' : '마무리 중...',
+  },
+  en: {
+    artworkLabel: 'My Artwork',
+    generating: 'Generating diagram...',
+    generatingSub: '도안 생성 중',
+    progress: (pct) =>
+      pct < 15 ? 'Analyzing image...' :
+      pct < 45 ? 'Clustering colors...' :
+      pct < 65 ? 'Assigning pixels...' :
+      pct < 80 ? 'Analyzing regions...' :
+      pct < 95 ? 'Rendering diagram...' : 'Finishing up...',
+  },
+  ja: {
+    artworkLabel: 'マイアートワーク',
+    generating: '図案を生成中...',
+    generatingSub: 'Generating diagram',
+    progress: (pct) =>
+      pct < 15 ? '画像を分析中...' :
+      pct < 45 ? '色をクラスタリング中...' :
+      pct < 65 ? 'ピクセルを割り当て中...' :
+      pct < 80 ? '領域を分析中...' :
+      pct < 95 ? '図案をレンダリング中...' : '仕上げ中...',
+  },
+};
+
 interface Props {
   canvas:             HTMLCanvasElement | null;
   isGenerating:       boolean;
   progress:           number;
   placeholder?:       string;
-  imageAspectRatio?:  number; // width/height of the original uploaded image
+  imageAspectRatio?:  number;
+  lang?:              Lang;
 }
 
-export default function DiagramCanvas({ canvas, isGenerating, progress, placeholder, imageAspectRatio = 1 }: Props) {
+export default function DiagramCanvas({ canvas, isGenerating, progress, placeholder, imageAspectRatio = 1, lang = 'ko' }: Props) {
+  const t = CANVAS_TEXT[lang];
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,7 +136,7 @@ export default function DiagramCanvas({ canvas, isGenerating, progress, placehol
             padding: '5px 28px',
             boxShadow: '0 2px 4px rgba(44, 34, 24, 0.2)',
           }}>
-            내 작품 / My Artwork
+            {t.artworkLabel}
           </div>
         </div>
       )}
@@ -139,9 +184,9 @@ export default function DiagramCanvas({ canvas, isGenerating, progress, placehol
             <div className="text-center">
               <p className="text-base font-semibold"
                 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-ink)' }}>
-                도안 생성 중...
+                {t.generating}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>Generating diagram</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{t.generatingSub}</p>
             </div>
 
             {/* Progress bar */}
@@ -156,12 +201,7 @@ export default function DiagramCanvas({ canvas, isGenerating, progress, placehol
             </p>
 
             <p className="text-xs text-center max-w-[200px]" style={{ color: 'var(--color-muted)' }}>
-              {progress < 15 && '이미지 분석 중...'}
-              {progress >= 15 && progress < 45 && 'K-means 색상 클러스터링 중...'}
-              {progress >= 45 && progress < 65 && '픽셀 할당 중...'}
-              {progress >= 65 && progress < 80 && '영역 분석 중...'}
-              {progress >= 80 && progress < 95 && '도안 렌더링 중...'}
-              {progress >= 95 && '마무리 중...'}
+              {t.progress(progress)}
             </p>
           </div>
         </div>
