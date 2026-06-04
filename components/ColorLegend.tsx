@@ -130,9 +130,6 @@ export default function ColorLegend({ colorMap, labeledRegionCount, totalRegionC
                   }}>
                     {lang === 'en' ? entry.paintColor.name : lang === 'ja' ? entry.paintColor.nameJa : entry.paintColor.nameKo}
                   </p>
-                  <p style={{ fontSize: '0.6rem', color: 'var(--color-muted)', lineHeight: 1.2 }}>
-                    {lang === 'ko' ? entry.paintColor.name : entry.paintColor.nameKo}
-                  </p>
                 </td>
 
                 {/* Hex code */}
