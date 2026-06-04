@@ -8,19 +8,56 @@ import ExportButtons from '@/components/ExportButtons';
 import { generateDiagram, reRenderDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
 import { suggestColorCount } from '@/lib/colorUtils';
 
-const STEPS = [
-  { ko: '업로드',   en: 'Upload'   },
-  { ko: '설정',     en: 'Settings' },
-  { ko: '생성',     en: 'Generate' },
-  { ko: '내보내기', en: 'Export'   },
-];
+type Lang = 'en' | 'ko' | 'ja';
 
-function StepIndicator({ current }: { current: number }) {
+const PAGE_TEXT: Record<Lang, {
+  subtitle: string;
+  settingsTitle: string;
+  exportTitle: string;
+  originalLabel: string;
+  legendPlaceholder: string;
+  footerNote: string;
+  errorGenerate: string;
+  steps: string[];
+}> = {
+  ko: {
+    subtitle: '페인트 바이 넘버 도안 생성기',
+    settingsTitle: '설정',
+    exportTitle: '내보내기',
+    originalLabel: '원본 이미지',
+    legendPlaceholder: '생성 후 색상 범례가\n표시됩니다',
+    footerNote: '모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다',
+    errorGenerate: '도안 생성 중 오류가 발생했습니다. 다시 시도해 주세요.',
+    steps: ['업로드', '설정', '생성', '내보내기'],
+  },
+  en: {
+    subtitle: 'Paint by Number Pattern Generator',
+    settingsTitle: 'Settings',
+    exportTitle: 'Export',
+    originalLabel: 'Original',
+    legendPlaceholder: 'Color legend appears\nafter generation.',
+    footerNote: 'All processing runs in your browser — images are never sent to a server',
+    errorGenerate: 'An error occurred during generation. Please try again.',
+    steps: ['Upload', 'Settings', 'Generate', 'Export'],
+  },
+  ja: {
+    subtitle: 'ペイントバイナンバー図案生成器',
+    settingsTitle: '設定',
+    exportTitle: 'エクスポート',
+    originalLabel: 'オリジナル',
+    legendPlaceholder: '生成後にカラー\nパレットが表示されます',
+    footerNote: 'すべての処理はブラウザで実行されます — 画像はサーバーに送信されません',
+    errorGenerate: '生成中にエラーが発生しました。もう一度お試しください。',
+    steps: ['アップロード', '設定', '生成', 'エクスポート'],
+  },
+};
+
+function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
   return (
     <div className="border-b" style={{ background: '#FDFAF5', borderColor: '#DDD0BC' }}>
       <div className="max-w-6xl mx-auto px-4 py-3">
         <div className="flex items-center">
-          {STEPS.map((step, i) => (
+          {steps.map((label, i) => (
             <div key={i} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-0.5">
                 <div
@@ -39,10 +76,10 @@ function StepIndicator({ current }: { current: number }) {
                 </div>
                 <span className="hidden sm:block text-[10px] font-medium"
                   style={{ color: i === current ? 'var(--color-frame-dark)' : 'var(--color-muted)' }}>
-                  {step.ko}
+                  {label}
                 </span>
               </div>
-              {i < STEPS.length - 1 && (
+              {i < steps.length - 1 && (
                 <div className="flex-1 h-px mx-2" style={{ background: '#D4C4AE' }} />
               )}
             </div>
@@ -57,10 +94,11 @@ export default function GeneratePage() {
   const router = useRouter();
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const [imageDataUrl,       setImageDataUrl]       = useState<string | null>(null);
-  const [imageAspectRatio,   setImageAspectRatio]   = useState<number>(1);
-  const [imagePixels,        setImagePixels]        = useState<number>(0);
-  const [suggestedColors,    setSuggestedColors]    = useState<number | null>(null);
+  const [lang,              setLang]              = useState<Lang>('ko');
+  const [imageDataUrl,      setImageDataUrl]      = useState<string | null>(null);
+  const [imageAspectRatio,  setImageAspectRatio]  = useState<number>(1);
+  const [imagePixels,       setImagePixels]       = useState<number>(0);
+  const [suggestedColors,   setSuggestedColors]   = useState<number | null>(null);
   const [settings, setSettings] = useState<DiagramSettings>({
     colorCount:  24,
     detailLevel: 'medium',
@@ -81,13 +119,15 @@ export default function GeneratePage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('uploadedImage');
     if (!stored) { router.replace('/'); return; }
+    const storedLang = sessionStorage.getItem('lang') as Lang | null;
+    if (storedLang && ['en', 'ko', 'ja'].includes(storedLang)) {
+      setLang(storedLang);
+    }
     setImageDataUrl(stored);
-    // Compute aspect ratio, pixel count, and colour suggestion from the stored image
     const img = new Image();
     img.onload = () => {
       setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       setImagePixels(img.naturalWidth * img.naturalHeight);
-      // Sample pixels for colour-count suggestion (use a small canvas for speed)
       const sW = Math.min(200, img.naturalWidth);
       const sH = Math.min(200, img.naturalHeight);
       const tmpCanvas = document.createElement('canvas');
@@ -100,10 +140,11 @@ export default function GeneratePage() {
     img.src = stored;
   }, [router]);
 
+  const t = PAGE_TEXT[lang];
+
   const handleSettingsChange = useCallback((newSettings: DiagramSettings) => {
     const prevColorMode = settings.colorMode;
     setSettings(newSettings);
-    // If only colorMode changed and we have a result, fast re-render without K-means
     if (
       result &&
       newSettings.colorMode !== prevColorMode &&
@@ -114,7 +155,6 @@ export default function GeneratePage() {
       newSettings.style       === settings.style
     ) {
       setIsRerendering(true);
-      // Use setTimeout to yield to React before the synchronous re-render
       setTimeout(() => {
         try {
           const { canvas: newCanvas, labeledRegionCount } = reRenderDiagram(result, newSettings.colorMode);
@@ -143,11 +183,11 @@ export default function GeneratePage() {
       setResult(res);
     } catch (err) {
       console.error('Diagram generation failed', err);
-      setError('도안 생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setError(t.errorGenerate);
     } finally {
       setIsGenerating(false);
     }
-  }, [settings]);
+  }, [settings, t]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -159,7 +199,7 @@ export default function GeneratePage() {
           <button
             onClick={() => router.push('/')}
             className="back-btn w-9 h-9 flex items-center justify-center"
-            title="홈으로 / Home"
+            title="Home"
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
               style={{ color: 'var(--color-ink)' }}>
@@ -179,13 +219,13 @@ export default function GeneratePage() {
               Paint by Number
             </h1>
             <p className="text-xs leading-tight" style={{ color: 'var(--color-muted)' }}>
-              페인트 바이 넘버 도안 생성기
+              {t.subtitle}
             </p>
           </div>
         </div>
       </header>
 
-      <StepIndicator current={currentStep} />
+      <StepIndicator current={currentStep} steps={t.steps} />
 
       {/* Hidden image element for processing */}
       {imageDataUrl && (
@@ -221,16 +261,7 @@ export default function GeneratePage() {
               color: 'var(--color-ink)',
               marginBottom: '6px',
             }}>
-              설정
-              <span style={{
-                fontFamily: 'var(--font-inter), Inter, sans-serif',
-                fontSize: '0.7rem',
-                fontWeight: 400,
-                color: 'var(--color-muted)',
-                marginLeft: '6px',
-              }}>
-                / Settings
-              </span>
+              {t.settingsTitle}
             </h2>
             <div style={{ height: '1px', background: 'var(--color-frame)', opacity: 0.35, marginBottom: '16px' }} />
 
@@ -243,14 +274,15 @@ export default function GeneratePage() {
               imageDataUrl={imageDataUrl ?? undefined}
               imagePixels={imagePixels}
               suggestedColors={suggestedColors}
+              lang={lang}
             />
 
             {imageDataUrl && (
               <div className="mt-5 pt-4" style={{ borderTop: '1px solid #EDE5D8' }}>
-                <p className="section-label mb-2">원본 이미지 / Original</p>
+                <p className="section-label mb-2">{t.originalLabel}</p>
                 <img
                   src={imageDataUrl}
-                  alt="원본"
+                  alt={t.originalLabel}
                   className="w-full object-cover"
                   style={{ maxHeight: 120, border: '1px solid #DDD0BC' }}
                 />
@@ -296,16 +328,7 @@ export default function GeneratePage() {
                   color: 'var(--color-ink)',
                   marginBottom: '12px',
                 }}>
-                  내보내기
-                  <span style={{
-                    fontFamily: 'var(--font-inter), Inter, sans-serif',
-                    fontSize: '0.7rem',
-                    fontWeight: 400,
-                    color: 'var(--color-muted)',
-                    marginLeft: '6px',
-                  }}>
-                    / Export
-                  </span>
+                  {t.exportTitle}
                 </h3>
                 <ExportButtons
                   result={result}
@@ -341,11 +364,8 @@ export default function GeneratePage() {
                 <svg className="w-12 h-12 opacity-25" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.53-.19-1.01-.49-1.38C13.22 18.22 13 17.63 13 17c0-1.1.9-2 2-2h2.2c2.65 0 4.8-2.15 4.8-4.8C22 5.78 17.52 2 12 2z"/>
                 </svg>
-                <p className="text-xs text-center" style={{ color: 'var(--color-muted)' }}>
-                  생성 후 색상 범례가<br />표시됩니다
-                </p>
-                <p className="text-center" style={{ fontSize: '10px', color: 'var(--color-muted)', opacity: 0.65 }}>
-                  Color legend appears after generation
+                <p className="text-xs text-center" style={{ color: 'var(--color-muted)', whiteSpace: 'pre-line' }}>
+                  {t.legendPlaceholder}
                 </p>
               </div>
             )}
@@ -358,7 +378,7 @@ export default function GeneratePage() {
       <footer className="py-5 text-center border-t" style={{ borderColor: '#DDD0BC' }}>
         <p className="text-xs italic"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-muted)' }}>
-          모든 처리는 브라우저에서 실행됩니다 — 이미지는 서버로 전송되지 않습니다
+          {t.footerNote}
         </p>
       </footer>
     </div>

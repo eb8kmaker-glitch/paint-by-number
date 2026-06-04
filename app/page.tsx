@@ -60,6 +60,7 @@ export default function HomePage() {
 
   const handleImageReady = (dataUrl: string) => {
     sessionStorage.setItem('uploadedImage', dataUrl);
+    sessionStorage.setItem('lang', 'ko');
     setReady(true);
   };
 

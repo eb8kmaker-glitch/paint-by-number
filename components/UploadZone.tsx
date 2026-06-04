@@ -1,12 +1,57 @@
 'use client';
 import { useRef, useState, useCallback, DragEvent, ChangeEvent } from 'react';
 
+type Lang = 'en' | 'ko' | 'ja';
+
 interface Props {
   onImageReady: (dataUrl: string) => void;
+  lang?: Lang;
 }
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIDE = 1200;
+
+const UPLOAD_TEXT: Record<Lang, {
+  prompt: string;
+  sub: string;
+  formats: string;
+  drop: string;
+  reset: string;
+  alt: string;
+  errorType: string;
+  errorProcess: string;
+}> = {
+  ko: {
+    prompt: '이미지를 드래그하거나 클릭하여 업로드',
+    sub: 'Drag & drop or click to upload',
+    formats: 'JPG · PNG · WEBP',
+    drop: '놓아서 업로드',
+    reset: '다시 선택',
+    alt: '업로드된 이미지',
+    errorType: 'JPG, PNG 또는 WEBP 파일만 지원됩니다.',
+    errorProcess: '이미지를 처리하는 중 오류가 발생했습니다.',
+  },
+  en: {
+    prompt: 'Drag & drop or click to upload',
+    sub: '이미지를 드래그하거나 클릭하여 업로드',
+    formats: 'JPG · PNG · WEBP',
+    drop: 'Drop to upload',
+    reset: 'Change image',
+    alt: 'Uploaded image',
+    errorType: 'Only JPG, PNG or WEBP files are supported.',
+    errorProcess: 'An error occurred while processing the image.',
+  },
+  ja: {
+    prompt: 'ドラッグ＆ドロップ、またはクリックしてアップロード',
+    sub: 'Drag & drop or click to upload',
+    formats: 'JPG · PNG · WEBP',
+    drop: 'ドロップしてアップロード',
+    reset: '画像を変更',
+    alt: 'アップロードした画像',
+    errorType: 'JPG、PNG、またはWEBPファイルのみサポートされています。',
+    errorProcess: '画像の処理中にエラーが発生しました。',
+  },
+};
 
 function resizeToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,17 +75,19 @@ function resizeToDataUrl(file: File): Promise<string> {
   });
 }
 
-export default function UploadZone({ onImageReady }: Props) {
+export default function UploadZone({ onImageReady, lang = 'ko' }: Props) {
   const inputRef   = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [preview,  setPreview]  = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [error,    setError]    = useState<string>('');
 
+  const t = UPLOAD_TEXT[lang];
+
   const process = useCallback(async (file: File) => {
     setError('');
     if (!ACCEPTED.includes(file.type)) {
-      setError('JPG, PNG 또는 WEBP 파일만 지원됩니다.');
+      setError(t.errorType);
       return;
     }
     try {
@@ -49,9 +96,9 @@ export default function UploadZone({ onImageReady }: Props) {
       setFileName(file.name);
       onImageReady(dataUrl);
     } catch {
-      setError('이미지를 처리하는 중 오류가 발생했습니다.');
+      setError(t.errorProcess);
     }
-  }, [onImageReady]);
+  }, [onImageReady, t]);
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -100,13 +147,13 @@ export default function UploadZone({ onImageReady }: Props) {
           </svg>
           <div className="text-center">
             <p className="text-base font-medium" style={{ color: 'var(--color-ink)' }}>
-              이미지를 드래그하거나 클릭하여 업로드
+              {t.prompt}
             </p>
             <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
-              Drag &amp; drop or click to upload
+              {t.sub}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.65 }}>
-              JPG · PNG · WEBP
+              {t.formats}
             </p>
           </div>
           {dragging && (
@@ -119,7 +166,7 @@ export default function UploadZone({ onImageReady }: Props) {
               justifyContent: 'center',
             }}>
               <p style={{ color: 'var(--color-accent)', fontWeight: 600, fontSize: '1.1rem' }}>
-                놓아서 업로드
+                {t.drop}
               </p>
             </div>
           )}
@@ -132,7 +179,7 @@ export default function UploadZone({ onImageReady }: Props) {
         }}>
           <img
             src={preview}
-            alt="업로드된 이미지"
+            alt={t.alt}
             className="w-full object-contain"
             style={{ maxHeight: '320px' }}
           />
@@ -146,7 +193,7 @@ export default function UploadZone({ onImageReady }: Props) {
               className="text-sm font-medium transition-colors"
               style={{ color: 'var(--color-accent-warm)' }}
             >
-              다시 선택
+              {t.reset}
             </button>
           </div>
         </div>

@@ -146,6 +146,7 @@ export default function LangHomePage() {
 
   const handleImageReady = (dataUrl: string) => {
     sessionStorage.setItem('uploadedImage', dataUrl);
+    sessionStorage.setItem('lang', lang);
     setReady(true);
   };
 
@@ -279,7 +280,7 @@ export default function LangHomePage() {
               boxShadow: 'inset 0 0 0 4px #D4B87A, 4px 8px 28px rgba(44, 34, 24, 0.18)',
               padding: '24px',
             }}>
-            <UploadZone onImageReady={handleImageReady} />
+            <UploadZone onImageReady={handleImageReady} lang={lang} />
             {ready && (
               <button
                 onClick={() => router.push('/generate')}
