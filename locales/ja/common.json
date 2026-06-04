@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "manual": "ガイド",
+    "generate": "図案生成",
+    "guide": "ガイド",
+    "faq": "よくある質問",
+    "language": "言語"
+  },
+  "footer": {
+    "privacy": "すべての処理はブラウザで実行されます — 画像はサーバーに送信されません",
+    "copyright": "© 2026 PaintKit"
+  },
+  "steps": {
+    "upload": "アップロード",
+    "settings": "設定",
+    "generate": "生成",
+    "export": "エクスポート"
+  },
+  "actions": {
+    "nextStep": "次のステップ",
+    "generate": "生成する",
+    "generating": "生成中...",
+    "savePng": "PNG保存",
+    "exportPdf": "PDFエクスポート",
+    "exportingPdf": "PDF生成中...",
+    "applyOptimal": "最適設定を適用",
+    "apply": "適用"
+  },
+  "common": {
+    "viewFullGuide": "詳細ガイドを見る →",
+    "viewFullFaq": "よくある質問をすべて見る →",
+    "contact": "お問い合わせ"
+  }
+}
