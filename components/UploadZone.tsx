@@ -23,7 +23,7 @@ const UPLOAD_TEXT: Record<Lang, {
 }> = {
   ko: {
     prompt: '이미지를 드래그하거나 클릭하여 업로드',
-    sub: 'Drag & drop or click to upload',
+    sub: 'JPG · PNG · WEBP 지원 — 최대 1200px',
     formats: 'JPG · PNG · WEBP',
     drop: '놓아서 업로드',
     reset: '다시 선택',
@@ -33,7 +33,7 @@ const UPLOAD_TEXT: Record<Lang, {
   },
   en: {
     prompt: 'Drag & drop or click to upload',
-    sub: '이미지를 드래그하거나 클릭하여 업로드',
+    sub: 'Supports JPG, PNG, WEBP — max 1200px',
     formats: 'JPG · PNG · WEBP',
     drop: 'Drop to upload',
     reset: 'Change image',
@@ -43,7 +43,7 @@ const UPLOAD_TEXT: Record<Lang, {
   },
   ja: {
     prompt: 'ドラッグ＆ドロップ、またはクリックしてアップロード',
-    sub: 'Drag & drop or click to upload',
+    sub: 'JPG・PNG・WEBP対応 — 最大1200px',
     formats: 'JPG · PNG · WEBP',
     drop: 'ドロップしてアップロード',
     reset: '画像を変更',

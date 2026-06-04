@@ -128,10 +128,10 @@ export default function ColorLegend({ colorMap, labeledRegionCount, totalRegionC
                     fontSize: '0.75rem',
                     lineHeight: 1.2,
                   }}>
-                    {entry.paintColor.nameKo}
+                    {lang === 'en' ? entry.paintColor.name : lang === 'ja' ? entry.paintColor.nameJa : entry.paintColor.nameKo}
                   </p>
                   <p style={{ fontSize: '0.6rem', color: 'var(--color-muted)', lineHeight: 1.2 }}>
-                    {entry.paintColor.name}
+                    {lang === 'ko' ? entry.paintColor.name : entry.paintColor.nameKo}
                   </p>
                 </td>
 

@@ -319,9 +319,9 @@ export default function SettingsPanel({
           style={{ background: '#DDD0BC' }}
         />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', marginTop: '3px', fontSize: '0.6rem', color: 'var(--color-muted)' }}>
-          <span>8<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Beg' : lang === 'ja' ? '初' : '입문'}</span></span>
-          <span style={{textAlign:'center'}}>24<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Std' : lang === 'ja' ? '標準' : '기본'}</span></span>
-          <span style={{textAlign:'center'}}>36<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Int' : lang === 'ja' ? '中級' : '중급'}</span></span>
+          <span>8<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Beg' : lang === 'ja' ? '初級' : '입문'}</span></span>
+          <span style={{textAlign:'center'}}>24<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Std' : lang === 'ja' ? '標準' : '기준'}</span></span>
+          <span style={{textAlign:'center'}}>36<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Mid' : lang === 'ja' ? '中級' : '중간'}</span></span>
           <span style={{textAlign:'right'}}>48<br/><span style={{opacity:0.65}}>{lang === 'en' ? 'Adv' : lang === 'ja' ? '上級' : '고급'}</span></span>
         </div>
 
