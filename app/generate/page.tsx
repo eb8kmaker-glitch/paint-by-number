@@ -5,6 +5,7 @@ import SettingsPanel from '@/components/SettingsPanel';
 import DiagramCanvas from '@/components/DiagramCanvas';
 import ColorLegend from '@/components/ColorLegend';
 import ExportButtons from '@/components/ExportButtons';
+import AdUnit from '@/components/AdUnit';
 import { generateDiagram, reRenderDiagram, DiagramSettings, DiagramResult } from '@/lib/diagramRenderer';
 import { suggestColorCount } from '@/lib/colorUtils';
 
@@ -303,6 +304,11 @@ export default function GeneratePage() {
               />
             </div>
 
+            {/* ── Slot 1: Ad during generation wait ──────── */}
+            {isGenerating && (
+              <AdUnit position="generate" className="py-2" />
+            )}
+
             {error && (
               <div className="px-4 py-3 text-sm"
                 style={{
@@ -339,6 +345,11 @@ export default function GeneratePage() {
                   lang={lang}
                 />
               </div>
+            )}
+
+            {/* ── Slot 3: Ad below result/export ─────────── */}
+            {result && (
+              <AdUnit position="display" className="pt-2" />
             )}
           </section>
 
