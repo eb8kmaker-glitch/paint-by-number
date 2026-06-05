@@ -54,7 +54,7 @@ export async function generateMetadata(
     description: meta.description,
     keywords: meta.keywords,
     openGraph: {
-      url: `https://paintkit.app/${l}`,
+      url: l === 'en' ? 'https://paintkit.app' : `https://paintkit.app/${l}`,
       siteName: 'PaintKit',
       title: meta.ogTitle,
       description: meta.ogDescription,
@@ -75,12 +75,12 @@ export async function generateMetadata(
       images: ['https://paintkit.app/og-image.png'],
     },
     alternates: {
-      canonical: `https://paintkit.app/${l}`,
+      canonical: l === 'en' ? 'https://paintkit.app' : `https://paintkit.app/${l}`,
       languages: {
-        'en': 'https://paintkit.app/en',
+        'en': 'https://paintkit.app',
         'ko': 'https://paintkit.app/ko',
         'ja': 'https://paintkit.app/ja',
-        'x-default': 'https://paintkit.app/en',
+        'x-default': 'https://paintkit.app',
       },
     },
   };

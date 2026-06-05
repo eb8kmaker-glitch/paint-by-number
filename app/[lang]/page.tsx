@@ -172,7 +172,7 @@ export default function LangHomePage() {
       <header className="sticky top-0 z-20 border-b backdrop-blur-md"
         style={{ borderColor: 'var(--color-frame)', background: 'rgba(248, 244, 238, 0.93)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href={`/${lang}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Link href={lang === 'en' ? '/' : `/${lang}`} className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-9 h-9 flex items-center justify-center flex-shrink-0"
               style={{ background: 'var(--color-frame-dark)', borderRadius: '3px' }}>
               <svg width="20" height="20" fill="none" stroke="#FDF6E3" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -206,7 +206,7 @@ export default function LangHomePage() {
               {LANG_LABELS.map(({ code, label }) => (
                 <Link
                   key={code}
-                  href={`/${code}`}
+                  href={code === 'en' ? '/' : `/${code}`}
                   className="px-1.5 py-0.5 rounded"
                   style={{
                     fontWeight: code === lang ? 700 : 400,
@@ -299,7 +299,6 @@ export default function LangHomePage() {
                 <div className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5" style={{ background: f.dot }} />
                 <div>
                   <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>{f.title}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{f.titleSub}</p>
                   <p className="text-xs mt-1" style={{ color: 'var(--color-muted)', opacity: 0.85 }}>{f.desc}</p>
                 </div>
               </div>
@@ -314,12 +313,7 @@ export default function LangHomePage() {
         <section className="py-10 border-t" style={{ borderColor: '#EDE5D8' }}>
           <div className="max-w-3xl mx-auto">
             <p style={sectionLabelStyle}>{manualData.title}</p>
-            <h2 style={headingStyle}>
-              {manualData.title}
-              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-muted)', marginLeft: '8px' }}>
-                / Settings Guide
-              </span>
-            </h2>
+            <h2 style={headingStyle}>{manualData.title}</h2>
             <p className="text-sm mb-8" style={{ color: 'var(--color-muted)' }}>{manualData.subtitle}</p>
 
             <div className="grid sm:grid-cols-2 gap-5">
@@ -364,12 +358,7 @@ export default function LangHomePage() {
         <section className="py-10 border-t" style={{ borderColor: '#EDE5D8' }}>
           <div className="max-w-2xl mx-auto">
             <p style={sectionLabelStyle}>{faqData.titleEn}</p>
-            <h2 style={headingStyle}>
-              {faqData.title}
-              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-muted)', marginLeft: '8px' }}>
-                / FAQ
-              </span>
-            </h2>
+            <h2 style={headingStyle}>{faqData.title}</h2>
 
             <div className="flex flex-col mt-6" style={{ gap: '1px', border: '1px solid #DDD0BC', borderRadius: '3px', overflow: 'hidden' }}>
               {faqData.items.slice(0, 5).map((item, i) => (
