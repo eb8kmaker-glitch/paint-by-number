@@ -75,6 +75,25 @@
         "A4 is the most versatile print size — works with most home printers.",
         "Use Color Guide mode if you are a beginner."
       ]
+    },
+    "supplies": {
+      "title": "What You'll Need to Paint",
+      "intro": "Once your pattern is ready, grab these three supplies and you're set to start painting.",
+      "affiliateNotice": "These are Amazon Associates affiliate links. I may earn a small commission at no extra cost to you.",
+      "items": [
+        {
+          "name": "Acrylic Paint Set (24 Colors)",
+          "desc": "Matches PaintKit's 24-color beginner setting. One tube per color number in your pattern."
+        },
+        {
+          "name": "Acrylic Brush Set",
+          "desc": "Flat brush for large regions, liner brush for edges and numbers. A mixed set covers both."
+        },
+        {
+          "name": "Mixing Palette",
+          "desc": "Use to mix and thin colors. A flat plastic palette with wells works best for acrylics."
+        }
+      ]
     }
   }
 }

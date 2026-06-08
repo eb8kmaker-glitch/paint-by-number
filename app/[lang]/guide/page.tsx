@@ -186,6 +186,98 @@ export default async function GuidePage(
           </ul>
         </section>
 
+        {/* Supplies */}
+        <section id={l === 'ko' ? '재료준비' : 'supplies'} className="mb-10">
+          <h2 className="text-base font-semibold mb-3"
+            style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: 'var(--color-ink)' }}>
+            {s.supplies.title}
+          </h2>
+          <p className="text-sm mb-5" style={{ color: 'var(--color-muted)' }}>{s.supplies.intro}</p>
+          <div className="grid sm:grid-cols-3 gap-4 mb-3">
+            {s.supplies.items.map((item, i) => {
+              const coupangSrcs = [
+                'https://coupa.ng/cnivVJ',
+                'https://coupa.ng/cnivZR',
+                'https://coupa.ng/cniv1b',
+              ];
+              const amazonUsHrefs = [
+                'https://www.amazon.com/s?k=acrylic+paint+set+24+colors',
+                'https://www.amazon.com/s?k=acrylic+paint+brush+set',
+                'https://www.amazon.com/s?k=acrylic+paint+mixing+palette',
+              ];
+              const amazonJpHrefs = [
+                'https://www.amazon.co.jp/s?k=%E3%82%A2%E3%82%AF%E3%83%AA%E3%83%AB%E7%B5%B5%E3%81%AE%E5%85%B7+24%E8%89%B2+%E3%82%BB%E3%83%83%E3%83%88',
+                'https://www.amazon.co.jp/s?k=%E3%82%A2%E3%82%AF%E3%83%AA%E3%83%AB%E7%AD%86+%E3%82%BB%E3%83%83%E3%83%88',
+                'https://www.amazon.co.jp/s?k=%E7%B5%B5%E3%81%AE%E5%85%B7+%E3%83%91%E3%83%AC%E3%83%83%E3%83%88',
+              ];
+              return (
+                <div key={i} style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  background: '#FDFAF5',
+                }}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '0.25rem', color: 'var(--color-ink)' }}>
+                      {item.name}
+                    </strong>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', margin: 0 }}>{item.desc}</p>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60px' }}>
+                    {l === 'ko' ? (
+                      /* eslint-disable-next-line @next/next/no-sync-scripts */
+                      <iframe
+                        src={coupangSrcs[i]}
+                        width="120"
+                        height="240"
+                        frameBorder={0}
+                        scrolling="no"
+                        referrerPolicy="unsafe-url"
+                      />
+                    ) : l === 'en' ? (
+                      /* TODO: Amazon US Associates 링크 교체 필요 */
+                      <a href={amazonUsHrefs[i]} rel="nofollow sponsored" target="_blank"
+                        style={{
+                          display: 'inline-block',
+                          padding: '0.4rem 0.9rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          textDecoration: 'none',
+                          color: '#374151',
+                          whiteSpace: 'nowrap',
+                        }}>
+                        View on Amazon →
+                      </a>
+                    ) : (
+                      /* TODO: Amazon JP Associates 링크 교체 필요 */
+                      <a href={amazonJpHrefs[i]} rel="nofollow sponsored" target="_blank"
+                        style={{
+                          display: 'inline-block',
+                          padding: '0.4rem 0.9rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          textDecoration: 'none',
+                          color: '#374151',
+                          whiteSpace: 'nowrap',
+                        }}>
+                        Amazonで見る →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.5rem' }}>
+            {s.supplies.affiliateNotice}
+          </p>
+        </section>
+
         {/* CTA */}
         <Link href={`/${l}`}
           className="btn-gallery btn-gold py-3 px-6 inline-flex items-center gap-2 text-base">
